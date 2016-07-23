@@ -41,6 +41,7 @@ function train()
 					       end
 					        if parameters == nil then 
 							if model then parameters, gradParameters = model:getParameters() end
+							print("Number of parameters ==>",parameters:size())
 						end
 						local outputs
 						local dLoss_dO

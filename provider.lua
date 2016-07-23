@@ -19,10 +19,10 @@ trainCVTemp = shuffle(csv.read("trainCV.csv"))
 testCVTemp = shuffle(csv.read("testCV.csv"))
 trainCV = {}
 testCV = {}
-for i = 1, 300 do 
+for i = 1, 3000 do 
 	trainCV[i] = trainCVTemp[i]
 end
-for i = 1, 50 do 
+for i = 1, 300 do 
 	testCV[i] = testCVTemp[i]
 end
 
@@ -57,7 +57,7 @@ function Provider:__init(tid,nThreads,crossValidation)
 	local testData = self.testData
 	function getxy(path)
 		local obs = path:split(",")
-		local dataPath = string.format("train/%s/%s",obs[2],obs[3]:gsub(".jpg","_x.jpg"))
+		local dataPath = string.format("train/%s/%s",obs[2],obs[3]:gsub(".jpg",".jpg"))
 		local label = tonumber(string.sub(obs[2],2,2))
 		if label == 0 then label = 10 end
 		return dataPath, label
@@ -93,6 +93,28 @@ function Provider:__init(tid,nThreads,crossValidation)
 
 end
 
+function Provider:estimateUV()
+	X = {}
+	local trdata = self.trainData
+	for i = 1, trdata.nObs do 
+		local x = image.loadJPG(trdata.data[i])
+		local dst = image.scale(x,32,32,"bilinear"):double()
+		local yuv = image.rgb2yuv(dst)	
+		yuv:resize(1,yuv:size(1),yuv:size(2),yuv:size(3))
+		X[i] = yuv
+		xlua.progress(i,trdata.nObs)
+		collectgarbage()
+	end
+	X = torch.cat(X,1)
+	meanU = X:select(2,2):mean()
+	stdU = X:select(2,2):std()
+	meanV = X:select(2,3):mean()
+	stdV = X:select(2,3):std()
+	print(string.format("Mean/Std U = {%f,%f}.",meanU,stdU))
+	print(string.format("Mean/Std V = {%f,%f}.",meanV,stdV))
+
+end
+
 function augment(img)
 	local aspectRatio = 640/480
 	local cropX = torch.random(40)
@@ -106,17 +128,20 @@ function channelSub(img)
 	rMu,rStd = img:narrow(1,1,1):mean(), img:narrow(1,1,1):std()
 	gMu,gStd = img:narrow(1,2,1):mean(), img:narrow(1,2,1):std()
 	bMu,bStd = img:narrow(1,3,1):mean(), img:narrow(1,3,1):std()
-	img[1]:csub(rMu)
-	img[2]:csub(gMu)
-	img[3]:csub(bMu)
+	img[1] = img[1]:div(rStd)
+	img[2] = img[2]:div(gStd)
+	img[3] = img[3]:div(bStd)
 end
 
 function preprocess(img)
-	--local yuv = image.rgb2yuv(img)
-     	--yuv[1] = normalization(yuv[{{1}}])
-	local dst = image.scale(img:squeeze(),params.inW,params.inH,"bilinear"):double()
-	channelSub(dst)
-	return dst:resize(1,3,params.inW,params.inH)
+	local yuv = image.rgb2yuv(img)
+	yuv = image.scale(yuv:squeeze(),params.inW,params.inH,"bilinear"):double()
+     	yuv[1] = normalization(yuv[{{1}}])
+	yuv:select(1,2):add(-0.006877)
+	yuv:select(1,2):div(0.027300)
+	yuv:select(1,3):add(0.042122)
+	yuv:select(1,3):div(0.055548)
+	return yuv:resize(1,3,params.inW,params.inH)
 end
 
 
@@ -166,13 +191,14 @@ function example()
 	 counter = Counter.new()
 	 trainMeans = {}
 	 testMeans = {}
+	 --[[
 	 for i =1, 4 do
 
 		 imgPaths,X,Y = prov1:getBatch("train")
-		 print(imgPaths,Y)
 		 imgPaths,X,Y = prov1:getBatch("test")
 		 print(imgPaths,Y)
 	 	--print(prov1.trainData.currentIdx,prov1.trainData.finished,prov1.trainData.nObs)
 		 --display(X,0,0,"train")
 	 end
+	 ]]--
  end

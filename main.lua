@@ -9,7 +9,7 @@ require "gnuplot"
 cmd = torch.CmdLine()
 cmd:text()
 cmd:text("Options")
-cmd:option("-modelName","deconv1.model","Name of model.")
+cmd:option("-modelName","model1.model","Name of model.")
 cmd:option("-modelSave",5000,"How often to save.")
 cmd:option("-loadModel",0,"Load model.")
 cmd:option("-nThreads",10,"Number of threads.")
@@ -20,7 +20,7 @@ cmd:option("-inW",128,"Input size")
 cmd:option("-inH",128,"Input size")
 
 cmd:option("-sf",0.7,"Scaling factor.")
-cmd:option("-nFeats",22,"Number of features.")
+cmd:option("-nFeats",16,"Number of features.")
 cmd:option("-level",0,"Which level (downsample).")
 
 cmd:option("-lr",0.0001,"Learning rate.")
@@ -41,9 +41,9 @@ optimMethod = optim.adam
 models = require("models")
 if params.loadModel == 1 then
 	print("==> Loading model")
-	model = torch.load(modelName):cuda()
+	model = torch.load(params.modelName):cuda()
 else 	
-	model = models.model1():cuda()
+	model = models.model2():cuda()
 end
 criterion = nn.CrossEntropyCriterion():cuda()
 
@@ -57,20 +57,18 @@ function run()
 		newEpoch()
 		print("On epoch ==>",epoch)
 		print("Training ==>")
-		--model:training()
+		model:training()
 		train()
 		print("Testing ==>")
-		--model:evaluate()
+		model:evaluate()
 		test()
 		epoch = epoch + 1
-		donkeys:terminate()
-		--[[
-		print("before collectgarbage")
+
 		collectgarbage()
 		print("Saving model ==>")
-		--torch.save("model1.model",model)
-		--]]--
+		torch.save(params.modelName,model)
 	end
+	donkeys:terminate()
 end
 
 if params.run == 1 then run() end
