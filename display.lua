@@ -1,6 +1,6 @@
-function display(x,y,yPred,trainOrTest)
+function display(x,trainOrTest)
 		if imgDisplay == nil then 
-			local zoom = params.zoom or 3 
+			local zoom = params.zoom or 2
 			local initPic = torch.rand(1,128,128)
 			imgDisplay0 = image.display{image=initPic, zoom=zoom, offscreen=false}
 			imgDisplay1 = image.display{image=initPic, zoom=zoom, offscreen=false}

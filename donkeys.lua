@@ -1,4 +1,5 @@
 Threads = require "threads"
+dofile("display.lua")
 
 function newEpoch()
 	do 
@@ -46,6 +47,7 @@ function train()
 						local batchLoss
 						local targetResize
 						local loss
+						model:training()
 						function feval(x)
 							if x ~= parameters then parameters:copy(x) end
 							model:training()
@@ -61,6 +63,7 @@ function train()
 					       count = targets:size(1) + count
 					       xlua.progress(count,dataSizes.trainCV)
 					       cmTrain:batchAdd(outputs,targets)
+					       if torch.uniform() < 0.1 and params.display == 1 then display(inputs,"train") end
 					elseif finished == 2 then 
 					end
 				end
@@ -84,7 +87,7 @@ function test()
 	while true do
 		donkeys:addjob(function()
 					imgPaths, inputs, targets = prov:getBatch("test") 
-					return tid, prov.trainData.finished, imgPaths,inputs,targets
+					return tid, prov.testData.finished, imgPaths,inputs,targets
 			       end,
 			       function(tid, finished, imgPaths, inputs, targets)
 				       if finished <= 1 then
@@ -93,12 +96,14 @@ function test()
 					local outputs
 					local loss
 					local targetResize
+					model:evaluate()
 					outputs = model:forward(inputs)
 					loss = criterion:forward(outputs,targets)
 				        count = targets:size(1) + count
 				        xlua.progress(count,dataSizes.testCV)
 					cmTest:batchAdd(outputs,targets)
 					epochLosses[#epochLosses+1] = loss
+					if torch.uniform() < 0.1 and params.display == 1 then display(inputs,"test") end
 					elseif finished == 2 then 
 					end
 				end
@@ -111,5 +116,6 @@ function test()
 	print(string.format("Finished test epoch %d with %d examples seen. Mean loss = %f.",epoch,count,meanLoss))
 	print(cmTest)
 	cmTest:zero()
+	donkeys:terminate()
 end
 	

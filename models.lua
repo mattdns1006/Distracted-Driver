@@ -62,15 +62,16 @@ function models.model1()
 		if i == 1 then nInputs = 3; else nInputs = nOutputs; end
 		if i == 1 then nOutputs = nFeats; else nOutputs = nOutputs; end
 		model:add(basicblock(nInputs,nOutputs,1))
-		model:add(fmp(3,3,0.8,0.8))
-		model:add(Dropout(0.05*i))
+		model:add(fmp(2,2,0.8,0.8))
+		model:add(Dropout(0.4))
 	end
 	model:add(Convolution(nInputs,1,3,3,1,1,1,1))
 	nInputs = nOutputs
 	outputBeforeReshape = model:cuda():forward(torch.rand(1,3,params.inH,params.inW):cuda()):size()
 	nOutputsBeforeReshape = outputBeforeReshape[2]*outputBeforeReshape[3]*outputBeforeReshape[4]
-	model:add(nn.View(nOutputsBeforeReshape))
+	model:add(nn.Reshape(nOutputsBeforeReshape))
 	model:add(nn.Linear(nOutputsBeforeReshape,200))
+	model:add(nn.BatchNormalization(200))
 	model:add(af())
 	model:add(Dropout(0.5))
 	model:add(nn.Linear(200,10))

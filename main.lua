@@ -23,7 +23,7 @@ cmd:option("-sf",0.7,"Scaling factor.")
 cmd:option("-nFeats",22,"Number of features.")
 cmd:option("-level",0,"Which level (downsample).")
 
-cmd:option("-lr",0.001,"Learning rate.")
+cmd:option("-lr",0.0001,"Learning rate.")
 cmd:option("-lrDecay",1.2,"Learning rate change factor.")
 cmd:option("-lrChange",10000,"How often to change lr.")
 
@@ -36,7 +36,6 @@ dofile("donkeys.lua")
 dofile("provider.lua")
 
 params = cmd:parse(arg)
-
 
 optimMethod = optim.adam
 models = require("models")

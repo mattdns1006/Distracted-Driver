@@ -21,8 +21,11 @@ trainCV = {}
 testCV = {}
 for i = 1, 100 do 
 	trainCV[i] = trainCVTemp[i]
+end
+for i = 1, 20 do 
 	testCV[i] = testCVTemp[i]
 end
+
 -- For main script
 dataSizes = {}
 dataSizes.trainCV = #trainCV
@@ -100,9 +103,10 @@ function augment(img)
 end
 
 function preprocess(img)
-	local yuv = image.rgb2yuv(img)
-     	yuv[1] = normalization(yuv[{{1}}])
-	local dst = image.scale(yuv:squeeze(),params.inW,params.inH,"bilinear"):double()
+	--local yuv = image.rgb2yuv(img)
+     	--yuv[1] = normalization(yuv[{{1}}])
+	local dst = image.scale(img:squeeze(),params.inW,params.inH,"bilinear"):double()
+	--dst:csub(dst:mean())
 	return dst:resize(1,3,params.inW,params.inH)
 end
 
