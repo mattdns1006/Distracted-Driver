@@ -11,7 +11,7 @@ function newEpoch()
 					dofile("provider.lua")
 					params = threadParams
 					prov = Provider.new(tid,params.nThreads,params.cv)
-					print(string.format("Initialized thread %d of %d.", tid,params.nThreads))
+					--print(string.format("Initialized thread %d of %d.", tid,params.nThreads))
 				end
 				)
 	end
@@ -47,7 +47,6 @@ function train()
 						local batchLoss
 						local targetResize
 						local loss
-						model:training()
 						function feval(x)
 							if x ~= parameters then parameters:copy(x) end
 							model:training()
@@ -58,6 +57,7 @@ function train()
 							model:backward(inputs,dLoss_dO)
 							return	loss, gradParameters 
 						end
+
 						_, batchLoss = optimMethod(feval,parameters,optimState)
 						epochLosses[#epochLosses+1] = loss
 					       count = targets:size(1) + count
@@ -96,7 +96,7 @@ function test()
 					local outputs
 					local loss
 					local targetResize
-					model:evaluate()
+
 					outputs = model:forward(inputs)
 					loss = criterion:forward(outputs,targets)
 				        count = targets:size(1) + count

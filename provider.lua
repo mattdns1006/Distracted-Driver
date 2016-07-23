@@ -16,13 +16,13 @@ local test = csv.read("test.csv")
 ]]--
 
 trainCVTemp = shuffle(csv.read("trainCV.csv"))
-testCVTemp = shuffle(csv.read("trainCV.csv"))
+testCVTemp = shuffle(csv.read("testCV.csv"))
 trainCV = {}
 testCV = {}
-for i = 1, 100 do 
+for i = 1, 300 do 
 	trainCV[i] = trainCVTemp[i]
 end
-for i = 1, 20 do 
+for i = 1, 50 do 
 	testCV[i] = testCVTemp[i]
 end
 
@@ -102,11 +102,20 @@ function augment(img)
 	return dst
 end
 
+function channelSub(img)
+	rMu,rStd = img:narrow(1,1,1):mean(), img:narrow(1,1,1):std()
+	gMu,gStd = img:narrow(1,2,1):mean(), img:narrow(1,2,1):std()
+	bMu,bStd = img:narrow(1,3,1):mean(), img:narrow(1,3,1):std()
+	img[1]:csub(rMu)
+	img[2]:csub(gMu)
+	img[3]:csub(bMu)
+end
+
 function preprocess(img)
 	--local yuv = image.rgb2yuv(img)
      	--yuv[1] = normalization(yuv[{{1}}])
 	local dst = image.scale(img:squeeze(),params.inW,params.inH,"bilinear"):double()
-	--dst:csub(dst:mean())
+	channelSub(dst)
 	return dst:resize(1,3,params.inW,params.inH)
 end
 
@@ -126,6 +135,9 @@ function Provider:getBatch(trainOrTest)
 
 		path = d.data[i]
 		x = image.loadJPG(path)
+		if trainOrTest == "train" then
+			x = augment(x)
+		end
 		x = preprocess(x)
 		y = d.labels[i]
 		table.insert(X,x)
@@ -150,13 +162,17 @@ function example()
 	 params.inW = 128
 	 params.inH = 128
 	 params.batchSize = 4 
-	 prov1 = Provider.new(1,4,1)
-	 prov2 = Provider.new(2,30,1)
+	 prov1 = Provider.new(1,1,1)
 	 counter = Counter.new()
-	 for i =1, 200 do
+	 trainMeans = {}
+	 testMeans = {}
+	 for i =1, 4 do
+
+		 imgPaths,X,Y = prov1:getBatch("train")
+		 print(imgPaths,Y)
 		 imgPaths,X,Y = prov1:getBatch("test")
+		 print(imgPaths,Y)
 	 	--print(prov1.trainData.currentIdx,prov1.trainData.finished,prov1.trainData.nObs)
-	 	print(prov1.testData.currentIdx,prov1.testData.finished,prov1.testData.nObs)
 		 --display(X,0,0,"train")
 	 end
  end

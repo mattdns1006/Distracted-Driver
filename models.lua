@@ -63,7 +63,7 @@ function models.model1()
 		if i == 1 then nOutputs = nFeats; else nOutputs = nOutputs; end
 		model:add(basicblock(nInputs,nOutputs,1))
 		model:add(fmp(2,2,0.8,0.8))
-		model:add(Dropout(0.4))
+		--model:add(Dropout(0.4))
 	end
 	model:add(Convolution(nInputs,1,3,3,1,1,1,1))
 	nInputs = nOutputs
@@ -73,7 +73,7 @@ function models.model1()
 	model:add(nn.Linear(nOutputsBeforeReshape,200))
 	model:add(nn.BatchNormalization(200))
 	model:add(af())
-	model:add(Dropout(0.5))
+	--model:add(Dropout(0.5))
 	model:add(nn.Linear(200,10))
 	layers.init(model)
 	return model
