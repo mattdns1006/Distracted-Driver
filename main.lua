@@ -34,6 +34,7 @@ cmd:option("-run",1,"Run.")
 cmd:text()
 dofile("donkeys.lua")
 dofile("provider.lua")
+dofile("/home/msmith/torchFunctions/counter.lua")
 
 params = cmd:parse(arg)
 
@@ -53,8 +54,9 @@ function run()
 	cmTest = optim.ConfusionMatrix(#classes,classes)
 	epoch = 1
 
-	while epoch < 20 do
 		newEpoch()
+	while epoch < 20 do
+
 		print("On epoch ==>",epoch)
 		print("Training ==>")
 		model:training()
@@ -68,7 +70,7 @@ function run()
 		print("Saving model ==>")
 		torch.save(params.modelName,model)
 	end
-	donkeys:terminate()
+	--donkeys:terminate()
 end
 
 if params.run == 1 then run() end

@@ -15,6 +15,30 @@ function newEpoch()
 				end
 				)
 	end
+
+end
+
+function reset()
+	local nThreadsResetted = Counter.new()
+	while true do 
+	donkeys:addjob(
+		function ()
+
+			prov.trainData.currentIdx = 1
+			prov.testData.currentIdx = 1
+			prov.trainData.finished = 0
+			prov.testData.finished = 0
+			return tid
+		end,
+		function (tid)
+			nThreadsResetted:add(tid)
+		end
+		)
+		if nThreadsResetted:size() == params.nThreads then 
+			break
+		end
+
+	end
 end
 
 function train()
@@ -27,10 +51,9 @@ function train()
 		epsilon = 1e-8
 	}
 	local epochLosses = {}
-	local reset = true 
+	reset()
 	while true do
 		donkeys:addjob(function()
-					--if reset == true then; prov.trainData.currentIdx = 1; reset = nil else end
 					imgPaths, inputs, targets = prov:getBatch("train") 
 					return tid, prov.trainData.finished, imgPaths,inputs,targets
 			       end,
@@ -71,7 +94,6 @@ function train()
 				)
 				if nThreadsFinished == params.nThreads then break end 
 				donkeys:synchronize()
-				reset = false
 				
 	end
 	local meanLoss = torch.Tensor(epochLosses):mean()
@@ -84,7 +106,6 @@ function test()
 	local count = 0
 	local nThreadsFinished = 0 
 	local epochLosses = {}
-	local reset = true 
 	while true do
 		donkeys:addjob(function()
 					imgPaths, inputs, targets = prov:getBatch("test") 
@@ -111,12 +132,10 @@ function test()
 			)
 			if nThreadsFinished == params.nThreads then break end 
 			donkeys:synchronize()
-			reset = false
 	end
 	local meanLoss = torch.Tensor(epochLosses):mean()
 	print(string.format("Finished test epoch %d with %d examples seen. Mean loss = %f.",epoch,count,meanLoss))
 	print(cmTest)
 	cmTest:zero()
-	donkeys:terminate()
 end
 	

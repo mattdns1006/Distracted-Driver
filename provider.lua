@@ -19,7 +19,7 @@ trainCVTemp = shuffle(csv.read("trainCV.csv"))
 testCVTemp = shuffle(csv.read("testCV.csv"))
 trainCV = {}
 testCV = {}
-for i = 1, 3000 do 
+for i = 1, 300 do 
 	trainCV[i] = trainCVTemp[i]
 end
 for i = 1, 300 do 
