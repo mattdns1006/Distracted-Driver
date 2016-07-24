@@ -3,8 +3,9 @@ dofile("/home/msmith/torchFunctions/joinTables.lua")
 dofile("/home/msmith/torchFunctions/shuffle.lua")
 
 require "nn"
-require "cunn"
 require "image"
+require "cutorch"
+cutorch.setDevice(1)
 
 local normalization = nn.SpatialContrastiveNormalization(1, image.gaussian1D(7))
 
@@ -141,8 +142,8 @@ end
 
 function augment(img)
 	local aspectRatio = 640/480
-	local cropX = torch.random(20)
-	local cropY = torch.random(20/aspectRatio)
+	local cropX = torch.random(60)
+	local cropY = torch.random(60/aspectRatio)
 	local x2, y2 = img:size(3) - cropX, img:size(2) - cropY
 	local dst = image.crop(x,cropX,cropY,x2,y2)
 	dst = image.rotate(dst,torch.uniform(-0.05,0.05))

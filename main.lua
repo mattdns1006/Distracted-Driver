@@ -1,10 +1,11 @@
 require "image"
 require "gnuplot"
 require "nn"
-require "cunn"
+require "cutorch"
 require "xlua"
 require "optim"
 require "gnuplot"
+cutorch.setDevice(1)
 
 cmd = torch.CmdLine()
 cmd:text()
@@ -74,7 +75,6 @@ function run()
 		print("Saving model ==>")
 		torch.save(params.modelName,model)
 	end
-	--donkeys:terminate()
 end
 
 if params.run == 1 then run() end

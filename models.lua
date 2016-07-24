@@ -85,7 +85,7 @@ function models.model2()
 	local nOutputs
 	for i =1, params.nDown do
 		if i == 1 then nInputs = 3; else nInputs = nOutputs; end
-		if i == 1 then nOutputs = nFeats; else nOutputs = nOutputs + nFeatsInc; end
+		if i == 1 then nOutputs = nFeats; else nOutputs = nOutputs + torch.floor(nFeatsInc/2); end
 		model:add(Convolution(nInputs,nOutputs,3,3,1,1,1,1))
 		model:add(SBN(nOutputs))
 		model:add(af())
@@ -100,11 +100,12 @@ function models.model2()
 	nOutputsBeforeReshape = outputBeforeReshape[2]*outputBeforeReshape[3]*outputBeforeReshape[4]
 	print(outputBeforeReshape)
 	model:add(nn.Reshape(nOutputsBeforeReshape))
-	model:add(nn.Linear(nOutputsBeforeReshape,100))
-	model:add(nn.BatchNormalization(100))
+
+	model:add(nn.Linear(nOutputsBeforeReshape,500))
+	model:add(nn.BatchNormalization(500))
 	model:add(af())
-	--model:add(Dropout(0.5))
-	model:add(nn.Linear(100,10))
+	model:add(Dropout(0.5))
+	model:add(nn.Linear(500,10))
 	layers.init(model)
 	return model
 end
