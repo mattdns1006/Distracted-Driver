@@ -83,7 +83,7 @@ function models.model2()
 	local model = nn.Sequential()
 	local nInputs
 	local nOutputs
-	for i =1, 8 do
+	for i =1, params.nDown do
 		if i == 1 then nInputs = 3; else nInputs = nOutputs; end
 		if i == 1 then nOutputs = nFeats; else nOutputs = nOutputs + nFeatsInc; end
 		model:add(Convolution(nInputs,nOutputs,3,3,1,1,1,1))
@@ -91,12 +91,14 @@ function models.model2()
 		model:add(af())
 		model:add(fmp(2,2,0.7,0.7))
 
+
 	end
 	model:add(Convolution(nOutputs,nOutputs,3,3,1,1,1,1))
 	model:add(SBN(nOutputs))
 	model:add(af())
 	outputBeforeReshape = model:cuda():forward(torch.rand(1,3,params.inH,params.inW):cuda()):size()
 	nOutputsBeforeReshape = outputBeforeReshape[2]*outputBeforeReshape[3]*outputBeforeReshape[4]
+	print(outputBeforeReshape)
 	model:add(nn.Reshape(nOutputsBeforeReshape))
 	model:add(nn.Linear(nOutputsBeforeReshape,100))
 	model:add(nn.BatchNormalization(100))

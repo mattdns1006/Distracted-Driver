@@ -22,10 +22,13 @@ cmd:option("-inH",128,"Input size")
 cmd:option("-sf",0.7,"Scaling factor.")
 cmd:option("-nFeats",16,"Number of features.")
 cmd:option("-level",0,"Which level (downsample).")
+cmd:option("-nDown",8,"Which level (downsample).")
 
 cmd:option("-lr",0.0001,"Learning rate.")
 cmd:option("-lrDecay",1.2,"Learning rate change factor.")
 cmd:option("-lrChange",10000,"How often to change lr.")
+cmd:option("-weightDecay",0.005,"Regularization term.")
+
 
 cmd:option("-display",0,"Display images.")
 cmd:option("-displayFreq",100,"Display images frequency.")
@@ -46,6 +49,7 @@ if params.loadModel == 1 then
 else 	
 	model = models.model2():cuda()
 end
+print(model)
 criterion = nn.CrossEntropyCriterion():cuda()
 
 function run()

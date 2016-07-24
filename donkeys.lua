@@ -48,7 +48,8 @@ function train()
 		learningRate = params.lr,
 		beta1 = 0.9,
 		beta2 = 0.999,
-		epsilon = 1e-8
+		epsilon = 1e-8,
+		weightDecay = params.weightDecay 
 	}
 	local epochLosses = {}
 	reset()

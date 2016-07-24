@@ -20,7 +20,7 @@ trainCVTemp = shuffle(csv.read("trainCV.csv"))
 testCVTemp = shuffle(csv.read("testCV.csv"))
 trainCV = {}
 testCV = {}
-for i = 1, 2000 do 
+for i = 1, 3000 do 
 	trainCV[i] = trainCVTemp[i]
 end
 for i = 1, 300 do 
@@ -58,7 +58,7 @@ function Provider:__init(tid,nThreads,crossValidation)
 	local testData = self.testData
 	function getxy(path)
 		local obs = path:split(",")
-		local dataPath = string.format("train/%s/%s",obs[2],obs[3]:gsub(".jpg",".jpg"))
+		local dataPath = string.format("train/%s/%s",obs[2],obs[3]:gsub(".jpg","_x.jpg"))
 		local label = tonumber(string.sub(obs[2],2,2))
 		if label == 0 then label = 10 end
 		return dataPath, label
@@ -115,6 +115,29 @@ function Provider:estimateUV()
 	print(string.format("Mean/Std V = {%f,%f}.",meanV,stdV))
 
 end
+function Provider:estimateRGB()
+	X = {}
+	local trdata = self.trainData
+	for i = 1, trdata.nObs do 
+		local x = image.loadJPG(trdata.data[i])
+		local dst = image.scale(x,32,32,"bilinear"):double()
+		dst:resize(1,dst:size(1),dst:size(2),dst:size(3))
+		X[i] = dst 
+		xlua.progress(i,trdata.nObs)
+		collectgarbage()
+	end
+	X = torch.cat(X,1)
+	meanR = X:select(2,1):mean()
+	stdR = X:select(2,1):std()
+	meanG = X:select(2,2):mean()
+	stdG = X:select(2,2):std()
+	meanB = X:select(2,3):mean()
+	stdB = X:select(2,3):std()
+	print(string.format("Mean/Std R = {%f,%f}.",meanR,stdR))
+	print(string.format("Mean/Std G = {%f,%f}.",meanG,stdG))
+	print(string.format("Mean/Std B = {%f,%f}.",meanB,stdB))
+
+end
 
 function augment(img)
 	local aspectRatio = 640/480
@@ -127,23 +150,25 @@ function augment(img)
 	return dst
 end
 
-function channelSub(img)
-	rMu,rStd = img:narrow(1,1,1):mean(), img:narrow(1,1,1):std()
-	gMu,gStd = img:narrow(1,2,1):mean(), img:narrow(1,2,1):std()
-	bMu,bStd = img:narrow(1,3,1):mean(), img:narrow(1,3,1):std()
-	img[1] = img[1]:div(rStd)
-	img[2] = img[2]:div(gStd)
-	img[3] = img[3]:div(bStd)
+function preprocessRGB(img)
+	local img = image.scale(img:squeeze(),params.inW,params.inH,"bilinear"):double()
+	img:select(1,1):add(-0.0608)
+	img:select(1,1):div(0.161)
+	img:select(1,2):add(-0.0686)
+	img:select(1,2):div(0.180)
+	img:select(1,3):add(0.0629)
+	img:select(1,3):div(0.171)
+	return img:resize(1,3,params.inW,params.inH)
 end
 
-function preprocess(img)
+function preprocessYUV(img)
 	local yuv = image.rgb2yuv(img)
 	yuv = image.scale(yuv:squeeze(),params.inW,params.inH,"bilinear"):double()
      	yuv[1] = normalization(yuv[{{1}}])
-	yuv:select(1,2):add(-0.006877)
-	yuv:select(1,2):div(0.027300)
-	yuv:select(1,3):add(0.042122)
-	yuv:select(1,3):div(0.055548)
+	yuv:select(1,2):add(0.001)
+	yuv:select(1,2):div(0.004)
+	yuv:select(1,3):add(0.011125)
+	yuv:select(1,3):div(0.021490)
 	return yuv:resize(1,3,params.inW,params.inH)
 end
 
@@ -166,7 +191,7 @@ function Provider:getBatch(trainOrTest)
 		if trainOrTest == "train" then
 			x = augment(x)
 		end
-		x = preprocess(x)
+		x = preprocessRGB(x)
 		y = d.labels[i]
 		table.insert(X,x)
 		table.insert(Y,y)
@@ -183,7 +208,7 @@ function Provider:getBatch(trainOrTest)
 end
 
 	
-function example()
+function example(show)
 	 dofile("display.lua")
 	 dofile("/home/msmith/torchFunctions/counter.lua")
 	 params = {}
@@ -195,12 +220,16 @@ function example()
 	 trainMeans = {}
 	 testMeans = {}
 	 timer = torch:Timer()
+	 if show == 1 then
 	 for i =1, 50 do
 
 		 imgPaths,X,Y = prov1:getBatch("train")
+		 print(X:size(),X:max())
 		 --imgPaths,X,Y = prov1:getBatch("test")
+		 --
 		 prov1.trainData.currentIdx = 1
-		 display(X,0,0,"train")
+	         display(X,0,0,"train")
 	 end
 		 print('time elapsed ' .. timer:time().real .. ' seconds')
+	end
  end
