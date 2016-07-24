@@ -20,10 +20,10 @@ trainCVTemp = shuffle(csv.read("trainCV.csv"))
 testCVTemp = shuffle(csv.read("testCV.csv"))
 trainCV = {}
 testCV = {}
-for i = 1, 3000 do 
+for i = 1, 5000 do 
 	trainCV[i] = trainCVTemp[i]
 end
-for i = 1, 300 do 
+for i = 1, 1000 do 
 	testCV[i] = testCVTemp[i]
 end
 
@@ -58,7 +58,7 @@ function Provider:__init(tid,nThreads,crossValidation)
 	local testData = self.testData
 	function getxy(path)
 		local obs = path:split(",")
-		local dataPath = string.format("train/%s/%s",obs[2],obs[3]:gsub(".jpg","_x.jpg"))
+		local dataPath = string.format("train/%s/%s",obs[2],obs[3]:gsub(".jpg",".jpg"))
 		local label = tonumber(string.sub(obs[2],2,2))
 		if label == 0 then label = 10 end
 		return dataPath, label
@@ -152,12 +152,12 @@ end
 
 function preprocessRGB(img)
 	local img = image.scale(img:squeeze(),params.inW,params.inH,"bilinear"):double()
-	img:select(1,1):add(-0.0608)
-	img:select(1,1):div(0.161)
-	img:select(1,2):add(-0.0686)
-	img:select(1,2):div(0.180)
-	img:select(1,3):add(0.0629)
-	img:select(1,3):div(0.171)
+	img:select(1,1):add(-0.3163)
+	img:select(1,1):div(0.261)
+	img:select(1,2):add(-0.3862)
+	img:select(1,2):div(0.306)
+	img:select(1,3):add(-0.378)
+	img:select(1,3):div(0.308)
 	return img:resize(1,3,params.inW,params.inH)
 end
 

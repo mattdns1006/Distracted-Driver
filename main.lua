@@ -16,8 +16,8 @@ cmd:option("-nThreads",10,"Number of threads.")
 cmd:option("-cv",1,"Cross validation.")
 cmd:option("-batchSize",5,"Batch size duh.")
 
-cmd:option("-inW",128,"Input size")
-cmd:option("-inH",128,"Input size")
+cmd:option("-inW",164,"Input size")
+cmd:option("-inH",164,"Input size")
 
 cmd:option("-sf",0.7,"Scaling factor.")
 cmd:option("-nFeats",16,"Number of features.")
@@ -27,7 +27,7 @@ cmd:option("-nDown",8,"Which level (downsample).")
 cmd:option("-lr",0.0001,"Learning rate.")
 cmd:option("-lrDecay",1.2,"Learning rate change factor.")
 cmd:option("-lrChange",10000,"How often to change lr.")
-cmd:option("-weightDecay",0.005,"Regularization term.")
+cmd:option("-weightDecay",0.01,"Regularization term.")
 
 
 cmd:option("-display",0,"Display images.")
