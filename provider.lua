@@ -14,12 +14,13 @@ local testCV = shuffle(csv.read("trainCV.csv"))
 local train = joinTables(trainCV,testCV) 
 local test = csv.read("test.csv")
 ]]--
+math.randomseed(1234)
 
 trainCVTemp = shuffle(csv.read("trainCV.csv"))
 testCVTemp = shuffle(csv.read("testCV.csv"))
 trainCV = {}
 testCV = {}
-for i = 1, 300 do 
+for i = 1, 2000 do 
 	trainCV[i] = trainCVTemp[i]
 end
 for i = 1, 300 do 
@@ -117,10 +118,12 @@ end
 
 function augment(img)
 	local aspectRatio = 640/480
-	local cropX = torch.random(40)
-	local cropY = torch.random(40/aspectRatio)
+	local cropX = torch.random(20)
+	local cropY = torch.random(20/aspectRatio)
 	local x2, y2 = img:size(3) - cropX, img:size(2) - cropY
 	local dst = image.crop(x,cropX,cropY,x2,y2)
+	dst = image.rotate(dst,torch.uniform(-0.05,0.05))
+	collectgarbage()
 	return dst
 end
 
@@ -191,14 +194,13 @@ function example()
 	 counter = Counter.new()
 	 trainMeans = {}
 	 testMeans = {}
-	 --[[
-	 for i =1, 4 do
+	 timer = torch:Timer()
+	 for i =1, 50 do
 
 		 imgPaths,X,Y = prov1:getBatch("train")
-		 imgPaths,X,Y = prov1:getBatch("test")
-		 print(imgPaths,Y)
-	 	--print(prov1.trainData.currentIdx,prov1.trainData.finished,prov1.trainData.nObs)
-		 --display(X,0,0,"train")
+		 --imgPaths,X,Y = prov1:getBatch("test")
+		 prov1.trainData.currentIdx = 1
+		 display(X,0,0,"train")
 	 end
-	 ]]--
+		 print('time elapsed ' .. timer:time().real .. ' seconds')
  end
