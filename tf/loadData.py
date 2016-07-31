@@ -2,9 +2,8 @@ import numpy as np
 import os
 import glob
 import cv2
+import pandas as pd
 import math
-import pickle
-import datetime
 import time
 from tqdm import tqdm
 
@@ -12,7 +11,6 @@ from tqdm import tqdm
 #import matplotlib.cm as cm
 import pdb
 import random
-from keras.utils import np_utils 
 from bn import batchNorm
 random.seed(2016)
 
@@ -35,10 +33,12 @@ class dataLoader():
         imgPaths = []
         for f in glob.glob("../train/*/*_x.jpg"):
             imgPaths.append(f)
-        nObs = len(imgPaths)
-        splitPoint = int(math.floor(splitPerc*nObs))
-        print("Total size of training set = ",nObs)
-        self.trainPaths, self.testPaths = imgPaths[:splitPoint], imgPaths[splitPoint:]
+        trainPathsCV = pd.read_csv("../trainCV.csv")
+        testPathsCV = pd.read_csv("../testCV.csv")
+        def makeName(row):
+            return "../train/" + row[1] + "/" + row[2]
+        self.trainPaths, self.testPaths = trainPathsCV.apply(makeName,1), testPathsCV.apply(makeName,1)
+        print("Total size of training/test sets = %d, %d",(self.trainPaths.shape[0],self.testPaths.shape[0]))
         self.batchIdxTrain = 0
         self.batchIdxTest = 0
         self.finished = 0

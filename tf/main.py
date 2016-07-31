@@ -7,9 +7,9 @@ import numpy as np
 import tensorflow as tf
 from nn import Convolution2D, MaxPooling2D
 from nn import FullConnected, ReadOutLayer
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 from loadData import *
-from matplotlib import cm
+#from matplotlib import cm
 import pdb 
 
 chkpt_file = 'checkPoint.ckpt'
@@ -100,26 +100,44 @@ def inference(x, y_, keep_prob, phase_train):
         pool1_out = pool1.output()
     
     with tf.variable_scope('conv_2'):
-        conv2 = Convolution2D(pool1_out, (30, 20), 32, 64, (3, 3), 
+        conv2 = Convolution2D(pool1_out, (30, 20), 32, 48, (3, 3), 
                                                           activation='none')
-        conv2_bn = batch_norm(conv2.output(), 64, phase_train)
+        conv2_bn = batch_norm(conv2.output(), 48, phase_train)
         conv2_out = tf.nn.relu(conv2_bn)
            
         pool2 = MaxPooling2D(conv2_out)
         pool2_out = pool2.output()    
-        pool2_flat = tf.reshape(pool2_out, [-1, 15*10*64])
+
+    with tf.variable_scope('conv_3'):
+        conv3 = Convolution2D(pool2_out, (15, 10), 48, 64 , (3, 3), 
+                                                          activation='none')
+        conv3_bn = batch_norm(conv3.output(), 64, phase_train)
+        conv3_out = tf.nn.relu(conv3_bn)
+           
+        pool3 = MaxPooling2D(conv3_out)
+        pool3_out = pool3.output()    
+
+    with tf.variable_scope('conv_4'):
+        conv4 = Convolution2D(pool3_out, (8, 5), 64, 64 , (3, 3), 
+                                                          activation='none')
+        conv4_bn = batch_norm(conv4.output(), 64, phase_train)
+        conv4_out = tf.nn.relu(conv4_bn)
+           
+        pool4 = MaxPooling2D(conv4_out)
+        pool4_out = pool4.output()    
+        pool4_flat = tf.reshape(pool4_out, [-1, 4*3*64])
     
     with tf.variable_scope('fc1'):
-        fc1 = FullConnected(pool2_flat, 15*10*64, 256)
+        fc1 = FullConnected(pool4_flat, 4*3*64, 100)
         fc1_out = fc1.output()
         fc1_dropped = tf.nn.dropout(fc1_out, keep_prob)
     
-    y_pred = ReadOutLayer(fc1_dropped, 256, 10).output()
+    y_pred = ReadOutLayer(fc1_dropped, 100, 10).output()
     
     cross_entropy = tf.reduce_mean(-tf.reduce_sum(y_ * tf.log(y_pred), 
                                     reduction_indices=[1]))
     loss = cross_entropy
-    train_step = training(loss, 1.e-4)
+    train_step = training(loss, 0.001)
     accuracy = evaluation(y_pred, y_)
     
     return loss, accuracy, y_pred
@@ -130,6 +148,8 @@ if __name__ == '__main__':
 
     batchSize = 10
     w,h,c = 60,40,3
+    epochs = range(10)
+    lr = 0.0001
     
     # Variables
     x = tf.placeholder(tf.float32, [None, w, h, c])
@@ -141,7 +161,7 @@ if __name__ == '__main__':
                                          keep_prob, phase_train)
 
     # Train
-    lr = 0.01
+
     train_step = tf.train.AdagradOptimizer(lr).minimize(loss)
     vars_to_train = tf.trainable_variables()    # option-1
     vars_for_bn1 = tf.get_collection(tf.GraphKeys.VARIABLES, scope='conv_1/bn')
@@ -178,33 +198,40 @@ if __name__ == '__main__':
         test = dataLoad.getBatch("test",batchSize=batchSize)
 
         if TASK == 'train':
-            print('\n Training...')
-            for i in range(5001):
-                batch_xs, batch_ys = train.next()
-                #pdb.set_trace()
-                train_step.run({x: batch_xs, y_: batch_ys, keep_prob: 0.5,
-                      phase_train: True})
-                if i % 1000 == 0:
-                    cv_fd = {x: batch_xs, y_: batch_ys, keep_prob: 1.0, 
-                                                   phase_train: False}
-                    train_loss = loss.eval(cv_fd)
-                    train_accuracy = accuracy.eval(cv_fd)
-                    
-                    print('  step, loss, accurary = %6d: %8.4f, %8.4f' % (i, 
-                        train_loss, train_accuracy))
+            for i in epochs:
+                print('\n Training epoch number %d ...' % i)
+                dataLoad.finished = False         
+                while dataLoad.finished == False:
+                    batch_xs, batch_ys = train.next()
 
-        # Test trained model
-        test_fd = {x: mnist.test.images, y_: mnist.test.labels, 
-                keep_prob: 1.0, phase_train: False}
-        print(' accuracy = %8.4f' % accuracy.eval(test_fd))
-        # Multiclass Log Loss
-        pred = y_pred.eval(test_fd)
-        act = mnist.test.labels
-        print(' multiclass logloss = %8.4f' % mlogloss(pred, act))
+                    #pdb.set_trace()
+                    train_step.run({x: batch_xs, y_: batch_ys, keep_prob: 0.5,
+                          phase_train: True})
+                    if dataLoad.batchIdxTrain % 100 == 0:
+                        cv_fd = {x: batch_xs, y_: batch_ys, keep_prob: 1.0, 
+                                                       phase_train: False}
+                        train_loss = loss.eval(cv_fd)
+                        train_accuracy = accuracy.eval(cv_fd)
+                        
+                        print('  step, loss, accurary = %6d: %10.6f, %10.6f' % (dataLoad.batchIdxTrain, 
+                            train_loss, train_accuracy))
+                
+                print('\n Testing epoch number %d ...' % i)
+                dataLoad.finished = False         
+                while dataLoad.finished == False:
+                    batch_xs, batch_ys = test.next()
+
+                    # Test trained model
+                    test_fd = {x: batch_xs, y_: batch_ys, 
+                            keep_prob: 1.0, phase_train: False}
+                    print(' accuracy = %10.6f' % accuracy.eval(test_fd))
+                    # Multiclass Log Loss
+                    pred = y_pred.eval(test_fd)
+                    print(' multiclass logloss = %10.6f' % mlogloss(pred, batch_ys))
     
         # Save the variables to disk.
-        if TASK == 'train':
-            save_path = saver.save(sess, chkpt_file)
-            print("Model saved in file: %s" % save_path)
+        def save():
+            if TASK == 'train':
+                save_path = saver.save(sess, chkpt_file)
+                print("Model saved in file: %s" % save_path)
     
-Raw
