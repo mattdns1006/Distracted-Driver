@@ -31,7 +31,7 @@ def getLabelName(label):
     return labels[label]
 
 class dataLoader():
-    def __init__(self,splitPerc = 0.9):
+    def __init__(self,splitPerc = 0.9, width=160, height = 120, channels = 3):
         imgPaths = []
         for f in glob.glob("../train/*/*_x.jpg"):
             imgPaths.append(f)
@@ -42,6 +42,10 @@ class dataLoader():
         self.batchIdxTrain = 0
         self.batchIdxTest = 0
         self.finished = 0
+	self.w = width
+	self.h = height 
+	self.c = channels 
+	print(" h, w, c = {%d,%d,%d}" % (self.w,self.h,self.c))
         print("Holding out %d for testing, training on %d" % (len(self.testPaths),len(self.trainPaths)))
 
 
@@ -70,7 +74,7 @@ class dataLoader():
                     xBatch = []
                     yBatch = []
                     for i in range(self.batchIdxTrain,min(self.batchIdxTrain+batchSize,len(self.trainPaths))):
-                        xBatch.append(self.loadImg(self.trainPaths[i],channels=channels,w=w,h=h))
+                        xBatch.append(self.loadImg(self.trainPaths[i],channels=self.c,w=self.w,h=self.h))
                         yBatch.append(self.oneHot(int(self.trainPaths[i].split("/")[2][1])))
 
                     xBatch = np.array(xBatch)
@@ -91,7 +95,7 @@ class dataLoader():
                     xBatch = []
                     yBatch = []
                     for i in range(self.batchIdxTest,min(self.batchIdxTest+batchSize,len(self.testPaths))):
-                        xBatch.append(self.loadImg(self.testPaths[i],channels=channels,w=w,h=h))
+                        xBatch.append(self.loadImg(self.testPaths[i],channels=self.c,w=self.w,h=self.h))
                         yBatch.append(self.oneHot(int(self.testPaths[i].split("/")[2][1])))
 
                     xBatch = np.array(xBatch)

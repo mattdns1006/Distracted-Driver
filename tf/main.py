@@ -5,9 +5,10 @@ from __future__ import print_function
 import os
 import numpy as np
 import tensorflow as tf
-from my_nn_lib import Convolution2D, MaxPooling2D
-from my_nn_lib import FullConnected, ReadOutLayer
+from nn import Convolution2D, MaxPooling2D
+from nn import FullConnected, ReadOutLayer
 import matplotlib.pyplot as plt
+from loadData import *
 from matplotlib import cm
 import pdb 
 
@@ -88,10 +89,10 @@ def mlogloss(predicted, actual):
 
 # Create the model
 def inference(x, y_, keep_prob, phase_train):
-    x_image = tf.reshape(x, [-1, 160, 120, 3])
+    x_image = tf.reshape(x, [-1, 60, 40, 3])
     
     with tf.variable_scope('conv_1'):
-        conv1 = Convolution2D(x, (28, 28), 3, 32, (5, 5), activation='none')
+        conv1 = Convolution2D(x, (60, 40), 3, 32, (3, 3), activation='none')
         conv1_bn = batch_norm(conv1.output(), 32, phase_train)
         conv1_out = tf.nn.relu(conv1_bn)
            
@@ -99,51 +100,21 @@ def inference(x, y_, keep_prob, phase_train):
         pool1_out = pool1.output()
     
     with tf.variable_scope('conv_2'):
-        conv2 = Convolution2D(pool1_out, (28, 28), 32, 64, (5, 5), 
+        conv2 = Convolution2D(pool1_out, (30, 20), 32, 64, (3, 3), 
                                                           activation='none')
         conv2_bn = batch_norm(conv2.output(), 64, phase_train)
         conv2_out = tf.nn.relu(conv2_bn)
            
         pool2 = MaxPooling2D(conv2_out)
         pool2_out = pool2.output()    
-        pool2_flat = tf.reshape(pool2_out, [-1, 7*7*64])
-
-    with tf.variable_scope('conv_3'):
-        conv2 = Convolution2D(pool1_out, (28, 28), 32, 64, (5, 5), 
-                                                          activation='none')
-        conv2_bn = batch_norm(conv2.output(), 64, phase_train)
-        conv2_out = tf.nn.relu(conv2_bn)
-           
-        pool2 = MaxPooling2D(conv2_out)
-        pool2_out = pool2.output()    
-        pool2_flat = tf.reshape(pool2_out, [-1, 7*7*64])
-
-    with tf.variable_scope('conv_4'):
-        conv2 = Convolution2D(pool1_out, (28, 28), 32, 64, (5, 5), 
-                                                          activation='none')
-        conv2_bn = batch_norm(conv2.output(), 64, phase_train)
-        conv2_out = tf.nn.relu(conv2_bn)
-           
-        pool2 = MaxPooling2D(conv2_out)
-        pool2_out = pool2.output()    
-        pool2_flat = tf.reshape(pool2_out, [-1, 7*7*64])
-
-    with tf.variable_scope('conv_5'):
-        conv2 = Convolution2D(pool1_out, (28, 28), 32, 64, (5, 5), 
-                                                          activation='none')
-        conv2_bn = batch_norm(conv2.output(), 64, phase_train)
-        conv2_out = tf.nn.relu(conv2_bn)
-           
-        pool2 = MaxPooling2D(conv2_out)
-        pool2_out = pool2.output()    
-        pool2_flat = tf.reshape(pool2_out, [-1, 7*7*64])
+        pool2_flat = tf.reshape(pool2_out, [-1, 15*10*64])
     
     with tf.variable_scope('fc1'):
-        fc1 = FullConnected(pool2_flat, 7*7*64, 1024)
+        fc1 = FullConnected(pool2_flat, 15*10*64, 256)
         fc1_out = fc1.output()
         fc1_dropped = tf.nn.dropout(fc1_out, keep_prob)
     
-    y_pred = ReadOutLayer(fc1_dropped, 1024, 10).output()
+    y_pred = ReadOutLayer(fc1_dropped, 256, 10).output()
     
     cross_entropy = tf.reduce_mean(-tf.reduce_sum(y_ * tf.log(y_pred), 
                                     reduction_indices=[1]))
@@ -156,9 +127,12 @@ def inference(x, y_, keep_prob, phase_train):
 #
 if __name__ == '__main__':
     TASK = 'train'    # 'train' or 'test'
+
+    batchSize = 10
+    w,h,c = 60,40,3
     
     # Variables
-    x = tf.placeholder(tf.float32, [None, 160, 120, 3])
+    x = tf.placeholder(tf.float32, [None, w, h, c])
     y_ = tf.placeholder(tf.float32, [None, 10])
     keep_prob = tf.placeholder(tf.float32)
     phase_train = tf.placeholder(tf.bool, name='phase_train')
@@ -198,11 +172,16 @@ if __name__ == '__main__':
             # Restore variables from disk.
             saver.restore(sess, chkpt_file) 
 
+
+        dataLoad = dataLoader(width = w, height = h, channels = c)
+        train = dataLoad.getBatch("train",batchSize=batchSize)
+        test = dataLoad.getBatch("test",batchSize=batchSize)
+
         if TASK == 'train':
             print('\n Training...')
             for i in range(5001):
-                batch_xs, batch_ys = mnist.train.next_batch(100)
-                pdb.set_trace()
+                batch_xs, batch_ys = train.next()
+                #pdb.set_trace()
                 train_step.run({x: batch_xs, y_: batch_ys, keep_prob: 0.5,
                       phase_train: True})
                 if i % 1000 == 0:
