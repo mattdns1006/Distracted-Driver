@@ -1,137 +1,104 @@
-import numpy as np
-import os
-import glob
-import cv2
+import tensorflow as tf
+import matplotlib.pyplot as plt
+import matplotlib.cm as cm
 import pandas as pd
-import math
-import time
-from tqdm import tqdm
-
-#import matplotlib.pyplot as plt
-#import matplotlib.cm as cm
+import numpy as np
+import cv2, glob
 import pdb
-import random
-from bn import batchNorm
-random.seed(2016)
 
-def showImg(img,ohTruth,sleep=0):
-    truth = np.where(ohTruth==1)[0][0]
-    title = getLabelName(truth) 
-    fig = plt.figure()
+def oneHot(idx,nClasses=10):
+    oh = tf.sparse_to_dense(idx,output_shape = [nClasses], sparse_values = 1.0)
+    return oh
+
+def makeCsv():
+    for i in ["train"]:
+        mask = glob.glob("../{0}/*/*_mask.jpg".format(i))
+        path = [x.replace("_mask","") for x in mask]
+        label = [int(x.split("/")[2][1]) for x in path]
+        csv = pd.DataFrame({"path":path,"pathMask":mask,"label":label})
+        csv.to_csv("{0}.csv".format(i),index=0)
+    for i in ["test"]:
+        mask = glob.glob("../{0}/*_mask.jpg".format(i))
+        path = [x.replace("_mask","") for x in mask]
+        csv = pd.DataFrame({"path":path,"pathMask":mask,"label":0})
+        csv.to_csv("{0}.csv".format(i),index=0)
+
+def show(img):
     plt.imshow(img,cmap=cm.gray)
-    fig.suptitle(title,fontsize=20)
     plt.show()
-    time.sleep(sleep)
-    plt.close()
 
-def getLabelName(label):
-    labels = {0:"normal driving",1:"texting R",2:"talking R",3:"texting L",4:"talking L",5:"radio",6:"drinking",7:"reaching behind",8:"hair/makeup", 9: "talking to passenger"}
-    return labels[label]
+def showBatch(batchX,batchXM, figsize=(15,15)):
+    n, h, w, c = batchX.shape
+    batchX = batchX.reshape(n*h,w,c)
+    batchXM = batchXM.reshape(n*h,w)
+    plt.figure(figsize=figsize)
+    plt.subplot(121)
+    plt.imshow(batchX)
+    plt.subplot(122)
+    plt.imshow(batchXM,cmap=cm.gray)
+    plt.show()
 
-class dataLoader():
-    def __init__(self,splitPerc = 0.9, width=160, height = 120, channels = 3):
-        imgPaths = []
-        for f in glob.glob("../train/*/*_x.jpg"):
-            imgPaths.append(f)
-        trainPathsCV = pd.read_csv("../trainCV.csv")
-        testPathsCV = pd.read_csv("../testCV.csv")
-        def makeName(row):
-            return "../train/" + row[1] + "/" + row[2]
-        self.trainPaths, self.testPaths = trainPathsCV.apply(makeName,1), testPathsCV.apply(makeName,1)
-        print("Total size of training/test sets = %d, %d",(self.trainPaths.shape[0],self.testPaths.shape[0]))
-        self.batchIdxTrain = 0
-        self.batchIdxTest = 0
-        self.finished = 0
-	self.w = width
-	self.h = height 
-	self.c = channels 
-	print(" h, w, c = {%d,%d,%d}" % (self.w,self.h,self.c))
-        print("Holding out %d for testing, training on %d" % (len(self.testPaths),len(self.trainPaths)))
+def getImg(path,size):
+    imageBytes = tf.read_file(path)
+    decodedImg = tf.image.decode_jpeg(imageBytes)
+    decodedImg = tf.image.resize_images(decodedImg,size)
+    decodedImg = tf.cast(decodedImg,tf.float32)
+    decodedImg = tf.mul(decodedImg,1/255.0)
+    return decodedImg
 
+def read(csvPath,batchSize,inSize,num_epochs,shuffle):
+    csv = tf.train.string_input_producer([csvPath],num_epochs=num_epochs,shuffle=shuffle)
+    reader = tf.TextLineReader(skip_header_lines=1)
+    k, v = reader.read(csv)
+    defaults = [tf.constant([],shape=[1],dtype = tf.int32),
+                tf.constant([],dtype = tf.string), 
+                tf.constant([],dtype = tf.string) ]
+    label,xPath,maskPath = tf.decode_csv(v,record_defaults = defaults)
+    label = oneHot(idx=label)
+    xPathRe = tf.reshape(xPath,[1])
+    x = getImg(xPath,inSize)
+    mask = getImg(maskPath,inSize)
+    maskSize = list(inSize)
+    maskSize += [1]
+    inSize += [3]
 
-    def loadImg(self, path, channels, w, h):
-        if channels == 1:
-            img = cv2.imread(path,0)
-        else: 
-            img = cv2.imread(path)
-        return cv2.resize(img,(h,w),interpolation=cv2.INTER_LINEAR)
+    Q = tf.FIFOQueue(64,[tf.float32,tf.float32,tf.float32,tf.string],shapes=[inSize,maskSize,[10],[1]])
+    enQ = Q.enqueue([x,mask,label,xPathRe])
+    QR = tf.train.QueueRunner(
+            Q,
+            [enQ]*8,
+            Q.close(),
+            Q.close(cancel_pending_enqueues=True)
+            )
+    tf.train.add_queue_runner(QR) 
+    dQ = Q.dequeue()
+    X,XM,Y,path = tf.train.batch(dQ,batchSize,16,allow_smaller_final_batch=True)
+    XC = tf.concat(3,[X,XM])
 
-    def oneHot(self,y):
-        return np.eye(10)[y]
-
-    def getBatch(self,trainOrTest, batchSize = 5, channels=3,w=160,h=120):
-        # get data paths
-
-            # Shuffle - to do
-
-
-
-            if trainOrTest == "train":
-                random.shuffle(self.trainPaths)
-
-                while True:
-
-                    xBatch = []
-                    yBatch = []
-                    for i in range(self.batchIdxTrain,min(self.batchIdxTrain+batchSize,len(self.trainPaths))):
-                        xBatch.append(self.loadImg(self.trainPaths[i],channels=self.c,w=self.w,h=self.h))
-                        yBatch.append(self.oneHot(int(self.trainPaths[i].split("/")[2][1])))
-
-                    xBatch = np.array(xBatch)
-                    yBatch = np.array(yBatch)
-                    if self.batchIdxTrain + batchSize >= len(self.trainPaths):
-                        self.batchIdxTrain = 0
-                        self.finished = 1
-                        print("Finished epoch")
-                    else:
-                        self.batchIdxTrain += batchSize
-                    yield xBatch, yBatch
-
-            else:
-                random.shuffle(self.testPaths)
-
-                while True:
-
-                    xBatch = []
-                    yBatch = []
-                    for i in range(self.batchIdxTest,min(self.batchIdxTest+batchSize,len(self.testPaths))):
-                        xBatch.append(self.loadImg(self.testPaths[i],channels=self.c,w=self.w,h=self.h))
-                        yBatch.append(self.oneHot(int(self.testPaths[i].split("/")[2][1])))
-
-                    xBatch = np.array(xBatch)
-                    yBatch = np.array(yBatch)
-
-                    if self.batchIdxTest + batchSize >= len(self.testPaths):
-                        self.batchIdxTest = 0
-                        self.finished = 1
-                    else:
-                        self.batchIdxTest += batchSize
-                    yield xBatch, yBatch
-
-
+    return XC, Y, path
 
 if __name__ == "__main__":
-    nClasses = 10
-    w,h = 640/4, 480/4
-    train = 1
-    dataLoad = dataLoader()
-    train = dataLoad.getBatch("train",batchSize=10)
-    test = dataLoad.getBatch("test",batchSize=10)
-    while dataLoad.finished == False:
-        x, y = test.next()
+    inSize = [200,200]
+    #makeCsv()
+    XC, Y, path = read(csvPath="train.csv",batchSize=4,inSize=inSize,shuffle=True)
 
-
-            
-
-
-                        
-
-
-    
-
-
-    
-
-        
-   
-    
+    init_op = tf.initialize_all_variables()
+    with tf.Session() as sess:
+        sess.run(init_op)
+        tf.initialize_local_variables().run()
+        coord = tf.train.Coordinator()
+        threads = tf.train.start_queue_runners(sess=sess,coord=coord)
+        count = 0
+        try:
+            while True:
+                xc, x, xm, y, path_ = sess.run([XC,X,XM,Y,path])
+                showBatch(x,xm)
+                count += x.shape[0]
+                pdb.set_trace()
+                if coord.should_stop():
+                    break
+        except Exception,e:
+            coord.request_stop(e)
+        finally:
+            coord.request_stop()
+            coord.join(threads)
