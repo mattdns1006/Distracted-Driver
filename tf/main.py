@@ -1,5 +1,6 @@
 import cv2,os,sys, glob
 import numpy as np
+import pandas as pd
 import tensorflow as tf
 import matplotlib.pyplot as plt
 import loadData
@@ -124,8 +125,11 @@ if __name__ == "__main__":
     what = ["train","test"]
     decode = Decode()
 
+
     if FLAGS.fit == 1:
         what = ["fit"]
+        print("Initializing dataframe to save into.")
+        df = []
     for trTe in what:
         if trTe in ["fit","test"]:
             load = 1
@@ -172,14 +176,6 @@ if __name__ == "__main__":
                             showBatch(x,y,yPred,wp="{0}/train.jpg".format(imgPath))
                             if FLAGS.show == 1:
                                 pass
-                        #        x = x[[0],:]
-                        #        y = y[[0],:]
-                        #        yPred = yPred[[0],:]
-                        #        showBatch(x,y,yPred,"{0}_{1}_.jpg".format(imgPath,trTe))
-                        #        # Random test image
-                        #        xTest,xTestPath = sess.run([XTest,XTestPath])
-                        #        yPred = YPred.eval(feed_dict={X:xTest,is_training:False})
-
 
                         if count % 10000 == 0:
                             print("Saving")
@@ -187,25 +183,17 @@ if __name__ == "__main__":
 
                     elif trTe == "fit":
                         x, yPred,fp = sess.run([X,YPred,XPath],feed_dict={is_training:False})
-                        x = x[[0],:]
-                        y = "NA" 
-                        yPred = decode.get(yPred[[0],:].argmax())
-                        count += FLAGS.bS 
+                        count += x.shape[0]
+                        for i in xrange(x.shape[0]):
+                            row = fp[i].tolist() + yPred[i].tolist()
+                            df.append(row) 
                         if count % 100 == 0:
-                            showBatch(x,y,yPred,wp="{0}/fit.jpg".format(imgPath))
+                            print(count)
+                            xeg = x[[0],:]
+                            yeg = "NA" 
+                            yPredeg = decode.get(yPred[[0],:].argmax())
+                            showBatch(xeg,yeg,yPredeg,wp="{0}/fit.jpg".format(imgPath))
 
-                        def saveings():
-                            for i in range(x.shape[0]):
-
-                                wp = fp[i][0].replace("head_","m4_")
-                                im = (yPred[i][:,:,::-1]*255.0).astype(np.uint8)
-                                im = cv2.resize(im,(500,500))
-                                count += 1
-                                
-                                #cv2.imwrite(wp,im)
-                                if np.random.uniform() < 0.03:
-                                    print(count)
-                                    showBatch(x,yPred,yPred,"{0}_{1}.jpg".format(imgPath,trTe))
                     else:
                         break
 
@@ -217,12 +205,19 @@ if __name__ == "__main__":
                 coord.request_stop()
                 coord.join(threads)
             print("Finished! Seen {0} examples".format(count))
-            print("Saving in {0}".format(savePath))
-            lrC = FLAGS.lr
-            FLAGS.lr /= FLAGS.lrD
-            print("Dropped learning rate from {0} to {1}".format(lrC,FLAGS.lr))
+
             if trTe == "train":
-                print("Saving")
+                lrC = FLAGS.lr
+                FLAGS.lr /= FLAGS.lrD
+                print("Dropped learning rate from {0} to {1}".format(lrC,FLAGS.lr))
+                print("Saving in {0}".format(savePath))
                 saver.save(sess,savePath)
+            elif trTe == "fit":
+                Df = pd.DataFrame(df)
+                Df.columns = ["img","c0","c1","c2","c3","c4","c5","c6","c7","c8","c9"]
+                Df.to_csv("submission.csv",index=0)
+                print("Written submission file.")
+
             sess.close()
+
                     
