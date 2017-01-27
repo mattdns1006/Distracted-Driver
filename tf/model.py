@@ -2,15 +2,7 @@ import tensorflow as tf
 import numpy as np
 import sys
 sys.path.append("/home/msmith/misc/tfFunctions")
-import tensorflow.contrib.layers as layers
 from batchNorm2 import bn
-
-fmp = tf.nn.fractional_max_pool
-mp = tf.nn.max_pool
-conv = tf.nn.conv2d
-dilconv = tf.nn.atrous_conv2d
-convUp = tf.nn.conv2d_transpose
-af = tf.nn.relu
 
 def W(shape,weightInit,scale=0.05):
     if len(shape) == 2:
@@ -62,16 +54,18 @@ def convolution2d(inTensor,inFeats,outFeats,filterSize,stride=1):
     return out
 
 def dilated_convolution2d(inTensor,inFeats,outFeats,filterSize,dilation):
-    with tf.name_scope("w"):
-        weight = W([filterSize,filterSize,inFeats,outFeats],"lecun_uniform")
-    with tf.name_scope("b"):
-        bias = B(outFeats)
-    with tf.name_scope("conv"):
-        out = tf.nn.atrous_conv2d(value=inTensor,filters=weight,rate=dilation,padding='SAME') + bias
+    with tf.name_scope("dilation"):
+        with tf.name_scope("w"):
+            weight = W([filterSize,filterSize,inFeats,outFeats],"lecun_uniform")
+        with tf.name_scope("b"):
+            bias = B(outFeats)
+        with tf.name_scope("conv"):
+            out = tf.nn.atrous_conv2d(value=inTensor,filters=weight,rate=dilation,padding='SAME') + bias
     return out 
 
 
 def model0(x,is_training,initFeats=16,featsInc=0,nDown=6,filterSize=3,decay=0.95):
+    af = tf.nn.relu
     print(x.get_shape())
     with tf.variable_scope("convIn"):
         x1 = af(bn(convolution2d(x,4,initFeats,3,stride=2),is_training=is_training,name="bn_0",decay=decay))
@@ -95,21 +89,22 @@ def model0(x,is_training,initFeats=16,featsInc=0,nDown=6,filterSize=3,decay=0.95
             #x1,_,_ = tf.nn.fractional_max_pool(x5,[1.0,1.5,1.5,1.0],True,True)
             dilation += 2
 
-    sizeBeforeReshape = x1.get_shape().as_list()
-    nFeats = sizeBeforeReshape[1]*sizeBeforeReshape[2]*sizeBeforeReshape[3]
-
-    flatten = tf.reshape(x1, [-1, nFeats])
+    with tf.variable_scope("reshape"):
+        sizeBeforeReshape = x1.get_shape().as_list()
+        nFeats = sizeBeforeReshape[1]*sizeBeforeReshape[2]*sizeBeforeReshape[3]
+        flatten = tf.reshape(x1, [-1, nFeats])
     #flatten = tf.nn.dropout(flatten,keepProb)
 
-    nLin1 = 64 
-    wLin1 = W([nFeats,nLin1],"lecun_uniform")
-    bLin1 = B(nLin1)
-    linear = af(bn(tf.matmul(flatten,wLin1) + bLin1,name="bn7",is_training=is_training))
+    with tf.variable_scope("lin"):
+        nLin1 = 64 
+        wLin1 = W([nFeats,nLin1],"lecun_uniform")
+        bLin1 = B(nLin1)
+        linear = af(bn(tf.matmul(flatten,wLin1) + bLin1,name="bn7",is_training=is_training))
 
-    nLin2 = 10 
-    wLin2 = W([nLin1,nLin2],"lecun_uniform")
-    bLin2 = B(nLin2)
-    with tf.variable_scope("convOut"):
+    with tf.variable_scope("out"):
+        nLin2 = 10 
+        wLin2 = W([nLin1,nLin2],"lecun_uniform")
+        bLin2 = B(nLin2)
         yPred = tf.matmul(linear,wLin2) + bLin2
         print(yPred.get_shape())
     return yPred
