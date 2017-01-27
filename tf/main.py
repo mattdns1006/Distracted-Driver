@@ -63,9 +63,18 @@ def trainer(lossFn, learningRate):
 
 def nodes(batchSize,inSize,trainOrTest,initFeats,incFeats,nDown,num_epochs):
     if trainOrTest == "train":
-        csvPath = "train.csv"
-        print("Training")
+        csvPath = "trainCV.csv"
+        print("Training on subset.")
         shuffle = True
+    elif trainOrTest == "trainAll":
+        csvPath = "train.csv"
+        print("Training on all.")
+        shuffle = True
+    elif trainOrTest == "test":
+        csvPath = "testCV.csv"
+        print("Testing on validation set")
+        shuffle = True
+        num_epochs = 1
     elif trainOrTest == "fit":
         csvPath = "test.csv"
         num_epochs = 1
@@ -76,9 +85,9 @@ def nodes(batchSize,inSize,trainOrTest,initFeats,incFeats,nDown,num_epochs):
             shuffle=shuffle,
             num_epochs = num_epochs
             ) #nodes
-    #XTestPath,XTest = loadData.testRead([inSize[0],inSize[1]])
     is_training = tf.placeholder(tf.bool)
-    YPred = model0(X,is_training=is_training,nDown=nDown,initFeats=initFeats,featsInc=incFeats)
+    drop = tf.placeholder(tf.float32)
+    YPred = model0(X,is_training=is_training,nDown=nDown,initFeats=initFeats,featsInc=incFeats,dropout=drop)
     loss = lossFn(Y,YPred)
     learningRate = tf.placeholder(tf.float32)
     trainOp = trainer(loss,learningRate)
@@ -87,7 +96,7 @@ def nodes(batchSize,inSize,trainOrTest,initFeats,incFeats,nDown,num_epochs):
     if trainOrTest == "fit":
         YPred = tf.nn.softmax(YPred)
 
-    return saver,xPath,X,Y,YPred,loss,is_training,trainOp,learningRate#, XTestPath, XTest
+    return saver,xPath,X,Y,YPred,loss,is_training,trainOp,learningRate, drop
 
 if __name__ == "__main__":
     import pdb
@@ -97,16 +106,18 @@ if __name__ == "__main__":
     flags.DEFINE_float("lr",0.001,"Initial learning rate.")
     flags.DEFINE_float("lrD",1.00,"Learning rate division rate applied every epoch. (DEFAULT - nothing happens)")
     flags.DEFINE_integer("inSize",256,"Size of input image")
-    flags.DEFINE_integer("initFeats",32,"Initial number of features.")
+    flags.DEFINE_integer("initFeats",16,"Initial number of features.")
     flags.DEFINE_integer("incFeats",0,"Number of features growing.")
-    flags.DEFINE_integer("nDown",5,"Number of blocks going down.")
+    flags.DEFINE_integer("drop",0.9,"Keep prob for dropout.")
+    flags.DEFINE_integer("nDown",6,"Number of blocks going down.")
     flags.DEFINE_integer("bS",10,"Batch size.")
     flags.DEFINE_integer("load",0,"Load saved model.")
     flags.DEFINE_integer("trainAll",0,"Train on all data.")
     flags.DEFINE_integer("fit",0,"Fit training data.")
     flags.DEFINE_integer("fitTest",0,"Fit actual test data.")
     flags.DEFINE_integer("show",0,"Show for sanity.")
-    flags.DEFINE_integer("nEpochs",200,"Number of epochs to train for.")
+    flags.DEFINE_integer("nEpochs",2,"Number of epochs to train for.")
+    flags.DEFINE_integer("test",0,"Just test.")
     batchSize = FLAGS.bS
     load = FLAGS.load
     if FLAGS.fit == 1 or FLAGS.fitTest == 1:
@@ -123,9 +134,10 @@ if __name__ == "__main__":
     trCount = teCount = 0
     trTe = "train"
     what = ["train","test"]
-    decode = Decode()
-
-
+    if FLAGS.test == 1:
+        what = ["test"]
+        load = 1
+        FLAGS.nEpochs = 1
     if FLAGS.fit == 1:
         what = ["fit"]
         print("Initializing dataframe to save into.")
@@ -133,92 +145,107 @@ if __name__ == "__main__":
         FLAGS.nEpochs = 1
         load = 1
         trTe = "fit"
+    decode = Decode()
 
-    tf.reset_default_graph()
-    saver,XPath,X,Y,YPred,loss,is_training,trainOp,learningRate = nodes(
-        batchSize=FLAGS.bS,
-        trainOrTest=trTe,
-        inSize = [FLAGS.inSize,FLAGS.inSize],
-        initFeats=FLAGS.initFeats,
-        incFeats=FLAGS.incFeats,
-        nDown=FLAGS.nDown,
-        num_epochs=FLAGS.nEpochs
-        )
+    for trTe in what:
+        tf.reset_default_graph()
+        saver,XPath,X,Y,YPred,loss,is_training,trainOp,learningRate,drop = nodes(
+            batchSize=FLAGS.bS,
+            trainOrTest=trTe,
+            inSize = [FLAGS.inSize,FLAGS.inSize],
+            initFeats=FLAGS.initFeats,
+            incFeats=FLAGS.incFeats,
+            nDown=FLAGS.nDown,
+            num_epochs=FLAGS.nEpochs
+            )
 
-    gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.85)
+        gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.85)
 
-    merged = tf.summary.merge_all()
-    with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
-        if load == 1:
-            print("Restoring {0}.".format(specification))
-            saver.restore(sess,savePath)
-        else:
-            tf.global_variables_initializer().run()
-        tf.local_variables_initializer().run()
-        trWriter = tf.summary.FileWriter("summary/{0}/train/".format(specification),sess.graph)
-        teWriter = tf.summary.FileWriter("summary/{0}/test/".format(specification),sess.graph)
-        coord = tf.train.Coordinator()
-        threads = tf.train.start_queue_runners(sess=sess,coord=coord)
-        count = 0
-        try:
-            while True:
-                if trTe in ["train","trainAll"]:
-                    _, summary,x,y,yPred,xPath = sess.run([trainOp,merged,X,Y,YPred,XPath],feed_dict={is_training:True,learningRate:FLAGS.lr})
+        merged = tf.summary.merge_all()
 
-                    trCount += batchSize
-                    count += batchSize
-                    trWriter.add_summary(summary,trCount)
-                    if count % 100 == 0:
-                        print("Seen {0} examples".format(count))
-                        x = x[[0],:]
-                        y = y[[0],:].argmax()
-                        yPred = yPred[[0],:].argmax()
-                        showBatch(x,y,yPred,wp="{0}/train.jpg".format(imgPath))
-                        if FLAGS.show == 1:
-                            pass
+        with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
+            if load == 1:
+                print("Restoring {0}.".format(specification))
+                saver.restore(sess,savePath)
+            else:
+                tf.global_variables_initializer().run()
+            tf.local_variables_initializer().run()
+            trWriter = tf.summary.FileWriter("summary/{0}/train/".format(specification),sess.graph)
+            teWriter = tf.summary.FileWriter("summary/{0}/test/".format(specification),sess.graph)
+            coord = tf.train.Coordinator()
+            threads = tf.train.start_queue_runners(sess=sess,coord=coord)
+            count = 0
+            try:
+                while True:
+                    if trTe in ["train","trainAll"]:
+                        _, summary,x,y,yPred,xPath = sess.run([trainOp,merged,X,Y,YPred,XPath],feed_dict={is_training:True,
+                                                                                                            drop:0.8,
+                                                                                                            learningRate:FLAGS.lr})
 
-                    if count % 10000 == 0:
-                        print("Saving")
-                        saver.save(sess,savePath)
+                        trCount += batchSize
+                        count += batchSize
+                        trWriter.add_summary(summary,trCount)
+                        if count % 100 == 0:
+                            print("Seen {0} examples".format(count))
+                            x = x[[0],:]
+                            y = y[[0],:].argmax()
+                            yPred = yPred[[0],:].argmax()
+                            showBatch(x,y,yPred,wp="{0}/train.jpg".format(imgPath))
+                            if FLAGS.show == 1:
+                                pass
 
-                elif trTe == "fit":
-                    x, yPred,fp = sess.run([X,YPred,XPath],feed_dict={is_training:False})
-                    count += x.shape[0]
-                    for i in xrange(x.shape[0]):
-                        row = fp[i].tolist() + yPred[i].tolist()
-                        df.append(row) 
-                    if count % 200 == 0:
-                        print(count)
-                        xeg = x[[0],:]
-                        yeg = "NA" 
-                        yPredeg = decode.get(yPred[[0],:].argmax())
-                        showBatch(xeg,yeg,yPredeg,wp="{0}/fit.jpg".format(imgPath))
+                        if count % 10000 == 0:
+                            print("Saving")
+                            saver.save(sess,savePath)
+                    elif trTe == "test":
+                        summary,x,y,yPred,xPath = sess.run([merged,X,Y,YPred,XPath],feed_dict={is_training:False,drop:1.0})
+                        teCount += batchSize
+                        teWriter.add_summary(summary,teCount)
+                        if teCount % 100 == 0:
+                            print("Seen {0} examples".format(teCount))
+                            x = x[[0],:]
+                            y = y[[0],:].argmax()
+                            yPred = yPred[[0],:].argmax()
+                            showBatch(x,y,yPred,wp="{0}/test.jpg".format(imgPath))
 
-                else:
-                    break
+                    elif trTe == "fit":
+                        x, yPred,fp = sess.run([X,YPred,XPath],feed_dict={is_training:False})
+                        count += x.shape[0]
+                        for i in xrange(x.shape[0]):
+                            row = fp[i].tolist() + yPred[i].tolist()
+                            df.append(row) 
+                        if count % 200 == 0:
+                            print(count)
+                            xeg = x[[0],:]
+                            yeg = "NA" 
+                            yPredeg = decode.get(yPred[[0],:].argmax())
+                            showBatch(xeg,yeg,yPredeg,wp="{0}/fit.jpg".format(imgPath))
 
-                if coord.should_stop():
-                    break
-        except Exception,e:
-            coord.request_stop(e)
-        finally:
-            coord.request_stop()
-            coord.join(threads)
-        print("Finished! Seen {0} examples".format(count))
+                    else:
+                        break
 
-        if trTe == "train":
-            lrC = FLAGS.lr
-            FLAGS.lr /= FLAGS.lrD
-            print("Dropped learning rate from {0} to {1}".format(lrC,FLAGS.lr))
-            print("Saving in {0}".format(savePath))
-            saver.save(sess,savePath)
-        elif trTe == "fit":
-            Df = pd.DataFrame(df)
-            Df.columns = ["img","c0","c1","c2","c3","c4","c5","c6","c7","c8","c9"]
-            Df["img"] = Df.img.apply(lambda x: x.split("/")[-1])
-            Df.to_csv("submission.csv",index=0)
-            print("Written submission file.")
+                    if coord.should_stop():
+                        break
+            except Exception,e:
+                coord.request_stop(e)
+            finally:
+                coord.request_stop()
+                coord.join(threads)
+            print("Finished! Seen {0} examples".format(count))
 
-        sess.close()
+            if trTe == "train":
+                lrC = FLAGS.lr
+                FLAGS.lr /= FLAGS.lrD
+                print("Dropped learning rate from {0} to {1}".format(lrC,FLAGS.lr))
+                print("Saving in {0}".format(savePath))
+                saver.save(sess,savePath)
+            elif trTe == "fit":
+                Df = pd.DataFrame(df)
+                Df.columns = ["img","c0","c1","c2","c3","c4","c5","c6","c7","c8","c9"]
+                Df["img"] = Df.img.apply(lambda x: x.split("/")[-1])
+                Df.to_csv("submission.csv",index=0)
+                print("Written submission file.")
 
-                
+            sess.close()
+
+                    

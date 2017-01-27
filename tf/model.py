@@ -64,7 +64,7 @@ def dilated_convolution2d(inTensor,inFeats,outFeats,filterSize,dilation):
     return out 
 
 
-def model0(x,is_training,initFeats=16,featsInc=0,nDown=6,filterSize=3,decay=0.95):
+def model0(x,is_training,initFeats=16,featsInc=0,nDown=6,filterSize=3,decay=0.95,dropout=1.0):
     af = tf.nn.relu
     print(x.get_shape())
     with tf.variable_scope("convIn"):
@@ -93,7 +93,7 @@ def model0(x,is_training,initFeats=16,featsInc=0,nDown=6,filterSize=3,decay=0.95
         sizeBeforeReshape = x1.get_shape().as_list()
         nFeats = sizeBeforeReshape[1]*sizeBeforeReshape[2]*sizeBeforeReshape[3]
         flatten = tf.reshape(x1, [-1, nFeats])
-    #flatten = tf.nn.dropout(flatten,keepProb)
+        flatten = tf.nn.dropout(flatten,dropout)
 
     with tf.variable_scope("lin"):
         nLin1 = 64 
