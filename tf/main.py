@@ -9,6 +9,23 @@ sys.path.append("/Users/matt/misc/tfFunctions/")
 import paramCount
 from dice import dice
 
+class Decode():
+    def __init__(self):
+        self.names = {0: "safe driving",
+                        1: "texting - right",
+                        2: "talking on the phone - right",
+                        3: "texting - left",
+                        4: "talking on the phone - left",
+                        5: "operating the radio",
+                        6: "drinking",
+                        7: "reaching behind",
+                        8: "hair and makeup",
+                        9: "talking to passenger"}
+
+    def get(self,label):
+        return self.names[label]
+
+
 def showBatch(batchX,y,yPred,wp,figsize=(15,15)):
     outSize = 200 # width
     n, h, w, c = batchX.shape
@@ -51,7 +68,6 @@ def nodes(batchSize,inSize,trainOrTest,initFeats,incFeats,nDown,num_epochs):
     elif trainOrTest == "fit":
         csvPath = "test.csv"
         num_epochs = 1
-        batchSize = 1
         shuffle = False
     X,Y,xPath = loadData.read(csvPath=csvPath,
             batchSize=batchSize,
@@ -68,7 +84,7 @@ def nodes(batchSize,inSize,trainOrTest,initFeats,incFeats,nDown,num_epochs):
     saver = tf.train.Saver()
 
     if trainOrTest == "fit":
-        YPred = tf.nn.softmax(Y)
+        YPred = tf.nn.softmax(YPred)
 
     return saver,xPath,X,Y,YPred,loss,is_training,trainOp,learningRate#, XTestPath, XTest
 
@@ -106,6 +122,7 @@ if __name__ == "__main__":
     trCount = teCount = 0
     tr = "train"
     what = ["train","test"]
+    decode = Decode()
 
     if FLAGS.fit == 1:
         what = ["fit"]
@@ -169,20 +186,26 @@ if __name__ == "__main__":
                             saver.save(sess,savePath)
 
                     elif trTe == "fit":
-                        x, yPred,fp = sess.run([X,YPred,xPath],feed_dict={is_training:False})
-                        showBatch(x,yPred,fp)
-                        pdb.set_trace()
-                        for i in range(x.shape[0]):
+                        x, yPred,fp = sess.run([X,YPred,XPath],feed_dict={is_training:False})
+                        x = x[[0],:]
+                        y = "NA" 
+                        yPred = decode.get(yPred[[0],:].argmax())
+                        count += FLAGS.bS 
+                        if count % 100 == 0:
+                            showBatch(x,y,yPred,wp="{0}/fit.jpg".format(imgPath))
 
-                            wp = fp[i][0].replace("head_","m4_")
-                            im = (yPred[i][:,:,::-1]*255.0).astype(np.uint8)
-                            im = cv2.resize(im,(500,500))
-                            count += 1
-                            
-                            cv2.imwrite(wp,im)
-                            if np.random.uniform() < 0.03:
-                                print(count)
-                                showBatch(x,yPred,yPred,"{0}_{1}.jpg".format(imgPath,trTe))
+                        def saveings():
+                            for i in range(x.shape[0]):
+
+                                wp = fp[i][0].replace("head_","m4_")
+                                im = (yPred[i][:,:,::-1]*255.0).astype(np.uint8)
+                                im = cv2.resize(im,(500,500))
+                                count += 1
+                                
+                                #cv2.imwrite(wp,im)
+                                if np.random.uniform() < 0.03:
+                                    print(count)
+                                    showBatch(x,yPred,yPred,"{0}_{1}.jpg".format(imgPath,trTe))
                     else:
                         break
 
