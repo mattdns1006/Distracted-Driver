@@ -16,7 +16,12 @@ def makeCsv():
         path = [x.replace("_mask","") for x in mask]
         label = [int(x.split("/")[2][1]) for x in path]
         csv = pd.DataFrame({"path":path,"pathMask":mask,"label":label})
+        nObs = csv.shape[0]
+        rIdx = np.random.permutation(nObs)
+        csv = csv.reindex(rIdx)
+        csv.reset_index(drop=1,inplace=1)
         csv.to_csv("{0}.csv".format(i),index=0)
+
     for i in ["test"]:
         mask = glob.glob("../{0}/*_mask.jpg".format(i))
         path = [x.replace("_mask","") for x in mask]
@@ -79,8 +84,8 @@ def read(csvPath,batchSize,inSize,num_epochs,shuffle):
 
 if __name__ == "__main__":
     inSize = [200,200]
-    #makeCsv()
-    XC, Y, path = read(csvPath="train.csv",batchSize=4,inSize=inSize,shuffle=True)
+    makeCsv()
+    XC, Y, path = read(csvPath="train.csv",batchSize=4,inSize=inSize,num_epochs=10,shuffle=True)
 
     init_op = tf.initialize_all_variables()
     with tf.Session() as sess:
@@ -91,9 +96,8 @@ if __name__ == "__main__":
         count = 0
         try:
             while True:
-                xc, x, xm, y, path_ = sess.run([XC,X,XM,Y,path])
-                showBatch(x,xm)
-                count += x.shape[0]
+                p = path.eval()
+                print(p)
                 pdb.set_trace()
                 if coord.should_stop():
                     break

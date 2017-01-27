@@ -18,7 +18,6 @@ def showBatch(batchX,y,yPred,wp,figsize=(15,15)):
     plt.subplot(122)
     plt.imshow(batchX[:,:,3],cmap=cm.gray)
     plt.title("yPred = {0}, y = {1}".format(yPred,y))
-    pdb.set_trace()
     plt.savefig(wp)
     plt.close()
 
@@ -151,9 +150,9 @@ if __name__ == "__main__":
                         if count % 100 == 0:
                             print("Seen {0} examples".format(count))
                             x = x[[0],:]
-                            y = y[[0],:]
-                            yPred = yPred[[0],:]
-                            showBatch(x,y,yPred,wp="train.jpg")
+                            y = y[[0],:].argmax()
+                            yPred = yPred[[0],:].argmax()
+                            showBatch(x,y,yPred,wp="{0}/train.jpg".format(imgPath))
                             if FLAGS.show == 1:
                                 pass
                         #        x = x[[0],:]
