@@ -114,9 +114,8 @@ if __name__ == "__main__":
     flags.DEFINE_integer("load",0,"Load saved model.")
     flags.DEFINE_integer("trainAll",0,"Train on all data.")
     flags.DEFINE_integer("fit",0,"Fit training data.")
-    flags.DEFINE_integer("fitTest",0,"Fit actual test data.")
     flags.DEFINE_integer("show",0,"Show for sanity.")
-    flags.DEFINE_integer("nEpochs",2,"Number of epochs to train for.")
+    flags.DEFINE_integer("nEpochs",20,"Number of epochs to train for.")
     flags.DEFINE_integer("test",0,"Just test.")
     batchSize = FLAGS.bS
     load = FLAGS.load
@@ -133,6 +132,7 @@ if __name__ == "__main__":
     savePath = modelDir + "model.tf"
     trCount = teCount = 0
     trTe = "train"
+    assert FLAGS.test + FLAGS.trainAll + FLAGS.fit == 1, "Only one of trainAll, test or fit == 1"
     what = ["train","test"]
     if FLAGS.test == 1:
         what = ["test"]
@@ -145,6 +145,8 @@ if __name__ == "__main__":
         FLAGS.nEpochs = 1
         load = 1
         trTe = "fit"
+    if FLAGS.trainAll == 1:
+        what = ["train"]
     decode = Decode()
 
     for trTe in what:
@@ -209,7 +211,7 @@ if __name__ == "__main__":
                             showBatch(x,y,yPred,wp="{0}/test.jpg".format(imgPath))
 
                     elif trTe == "fit":
-                        x, yPred,fp = sess.run([X,YPred,XPath],feed_dict={is_training:False})
+                        x, yPred,fp = sess.run([X,YPred,XPath],feed_dict={is_training:False,drop:1.0})
                         count += x.shape[0]
                         for i in xrange(x.shape[0]):
                             row = fp[i].tolist() + yPred[i].tolist()

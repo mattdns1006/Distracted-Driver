@@ -86,7 +86,7 @@ def model0(x,is_training,initFeats=16,featsInc=0,nDown=6,filterSize=3,decay=0.95
             x6 = bn(x5 + x4 + x3 + x2,is_training=is_training,name="bn_{0}_4".format(nDown))
 	    x1 = tf.nn.max_pool(x6,[1,3,3,1],[1,2,2,1],"SAME")
     	    print(x6.get_shape())
-            #x1,_,_ = tf.nn.fractional_max_pool(x5,[1.0,1.5,1.5,1.0],True,True)
+            #x1,_,_ = tf.nn.fractional_max_pool(x6,[1.0,1.5,1.5,1.0],True,True)
             dilation += 2
 
     with tf.variable_scope("reshape"):
@@ -96,10 +96,11 @@ def model0(x,is_training,initFeats=16,featsInc=0,nDown=6,filterSize=3,decay=0.95
         flatten = tf.nn.dropout(flatten,dropout)
 
     with tf.variable_scope("lin"):
-        nLin1 = 64 
+        nLin1 = 256 
         wLin1 = W([nFeats,nLin1],"lecun_uniform")
         bLin1 = B(nLin1)
         linear = af(bn(tf.matmul(flatten,wLin1) + bLin1,name="bn7",is_training=is_training))
+        linear = tf.nn.dropout(linear,dropout)
 
     with tf.variable_scope("out"):
         nLin2 = 10 

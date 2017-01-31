@@ -67,11 +67,11 @@ def read(csvPath,batchSize,inSize,num_epochs,shuffle):
     maskSize += [1]
     inSize += [3]
 
-    Q = tf.FIFOQueue(64,[tf.float32,tf.float32,tf.float32,tf.string],shapes=[inSize,maskSize,[10],[1]])
+    Q = tf.FIFOQueue(128,[tf.float32,tf.float32,tf.float32,tf.string],shapes=[inSize,maskSize,[10],[1]])
     enQ = Q.enqueue([x,mask,label,xPathRe])
     QR = tf.train.QueueRunner(
             Q,
-            [enQ]*8,
+            [enQ]*32,
             Q.close(),
             Q.close(cancel_pending_enqueues=True)
             )
