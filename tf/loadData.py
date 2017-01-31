@@ -6,10 +6,17 @@ import numpy as np
 import cv2, glob
 import pdb
 
+def brightness(img,max_delta=30):
+    return tf.image.random_brightness(img,max_delta=max_delta)
+
+def contrast(img,lower=0.8,upper=1.2):
+    return tf.image.random_contrast(img,lower=lower,upper=upper)
+
 def aug(img,inSize):
     cropSize = int(0.9*inSize[0])
     img = tf.random_crop(img,[cropSize,cropSize,inSize[2]])
     img = tf.image.resize_images(img,inSize[:2])
+    img = contrast(img)
     return img
 
 def oneHot(idx,nClasses=10):

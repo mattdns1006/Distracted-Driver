@@ -111,7 +111,7 @@ if __name__ == "__main__":
     flags.DEFINE_integer("initFeats",16,"Initial number of features.")
     flags.DEFINE_integer("incFeats",32,"Number of features growing.")
     flags.DEFINE_float("drop",0.8,"Keep prob for dropout.")
-    flags.DEFINE_integer("aug",0,"Augment.")
+    flags.DEFINE_integer("aug",1,"Augment.")
     flags.DEFINE_integer("nDown",7,"Number of blocks going down.")
     flags.DEFINE_integer("bS",10,"Batch size.")
     flags.DEFINE_integer("load",0,"Load saved model.")
@@ -138,9 +138,11 @@ if __name__ == "__main__":
     assert FLAGS.test + FLAGS.trainAll + FLAGS.fit in [0,1], "Only one of trainAll, test or fit == 1"
     assert FLAGS.feats in [3,4], "feats must be either 3 (RGB) or 4(RBG+mask)"
     what = ["train"]
+    aug = FLAGS.aug
     if FLAGS.test == 1:
         what = ["test"]
         load = 1
+        aug = 0
         FLAGS.nEpochs = 1
     if FLAGS.fit == 1:
         what = ["fit"]
@@ -148,6 +150,7 @@ if __name__ == "__main__":
         df = []
         FLAGS.nEpochs = 1
         load = 1
+        aug = 0
         trTe = "fit"
     if FLAGS.trainAll == 1:
         what = ["train"]
@@ -163,7 +166,7 @@ if __name__ == "__main__":
             incFeats=FLAGS.incFeats,
             nDown=FLAGS.nDown,
             num_epochs=FLAGS.nEpochs,
-            augment = FLAGS.aug
+            augment = aug
             )
 
         gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.85)
@@ -210,7 +213,7 @@ if __name__ == "__main__":
                     elif trTe == "test":
                         summary,x,y,yPred,xPath = sess.run([merged,X,Y,YPred,XPath],feed_dict={is_training:False,drop:FLAGS.drop})
                         teCount += batchSize
-                        teWriter.add_summary(summary,teCount)
+                        teWriter.add_summary(summary)
                         if teCount % 100 == 0:
                             print("Seen {0} examples".format(teCount))
                             x = x[[0],:]
