@@ -100,15 +100,16 @@ def nodes(batchSize,inSize,trainOrTest,initFeats,incFeats,nDown,num_epochs):
 
 if __name__ == "__main__":
     import pdb
-    nEpochs = 20
+    nEpochs = 3 
     flags = tf.app.flags
     FLAGS = flags.FLAGS 
     flags.DEFINE_float("lr",0.001,"Initial learning rate.")
+    flags.DEFINE_float("feats",4,"Use the 4th feature i.e. mask?.")
     flags.DEFINE_float("lrD",1.00,"Learning rate division rate applied every epoch. (DEFAULT - nothing happens)")
     flags.DEFINE_integer("inSize",256,"Size of input image")
     flags.DEFINE_integer("initFeats",16,"Initial number of features.")
     flags.DEFINE_integer("incFeats",0,"Number of features growing.")
-    flags.DEFINE_integer("drop",0.9,"Keep prob for dropout.")
+    flags.DEFINE_float("drop",0.9,"Keep prob for dropout.")
     flags.DEFINE_integer("nDown",6,"Number of blocks going down.")
     flags.DEFINE_integer("bS",10,"Batch size.")
     flags.DEFINE_integer("load",0,"Load saved model.")
@@ -119,9 +120,9 @@ if __name__ == "__main__":
     flags.DEFINE_integer("test",0,"Just test.")
     batchSize = FLAGS.bS
     load = FLAGS.load
-    if FLAGS.fit == 1 or FLAGS.fitTest == 1:
+    if FLAGS.fit == 1 or FLAGS.test == 1:
         load = 1
-    specification = "{0}_{1:.6f}_{2}_{3}_{4}_{5}".format(FLAGS.bS,FLAGS.lr,FLAGS.inSize,FLAGS.initFeats,FLAGS.incFeats,FLAGS.nDown)
+    specification = "{0}_{1:.6f}_{2}_{3}_{4}_{5}_{6:.3f}".format(FLAGS.bS,FLAGS.lr,FLAGS.inSize,FLAGS.initFeats,FLAGS.incFeats,FLAGS.nDown,FLAGS.drop)
     print("Specification = {0}".format(specification))
     modelDir = "models/" + specification + "/"
     imgPath = modelDir + "imgs/"
@@ -132,13 +133,14 @@ if __name__ == "__main__":
     savePath = modelDir + "model.tf"
     trCount = teCount = 0
     trTe = "train"
-    assert FLAGS.test + FLAGS.trainAll + FLAGS.fit == 1, "Only one of trainAll, test or fit == 1"
-    what = ["train","test"]
+    assert FLAGS.test + FLAGS.trainAll + FLAGS.fit in [0,1], "Only one of trainAll, test or fit == 1"
+    assert FLAGS.feats in [3,4], "feats must be either 3 (RGB) or 4(RBG+mask)"
+    what = ["train"]
     if FLAGS.test == 1:
         what = ["test"]
         load = 1
         FLAGS.nEpochs = 1
-    if FLAGS.fit == 1:
+    if FLin.writer.AGS.fit == 1:
         what = ["fit"]
         print("Initializing dataframe to save into.")
         df = []
@@ -181,7 +183,7 @@ if __name__ == "__main__":
                 while True:
                     if trTe in ["train","trainAll"]:
                         _, summary,x,y,yPred,xPath = sess.run([trainOp,merged,X,Y,YPred,XPath],feed_dict={is_training:True,
-                                                                                                            drop:0.8,
+                                                                                                            drop:FLAGS.drop,
                                                                                                             learningRate:FLAGS.lr})
 
                         trCount += batchSize
@@ -199,8 +201,11 @@ if __name__ == "__main__":
                         if count % 10000 == 0:
                             print("Saving")
                             saver.save(sess,savePath)
+                        if count > 30000:
+                            print("Finished training cba")
+                            break
                     elif trTe == "test":
-                        summary,x,y,yPred,xPath = sess.run([merged,X,Y,YPred,XPath],feed_dict={is_training:False,drop:1.0})
+                        summary,x,y,yPred,xPath = sess.run([merged,X,Y,YPred,XPath],feed_dict={is_training:False,drop:FLAGS.drop})
                         teCount += batchSize
                         teWriter.add_summary(summary,teCount)
                         if teCount % 100 == 0:
@@ -211,12 +216,12 @@ if __name__ == "__main__":
                             showBatch(x,y,yPred,wp="{0}/test.jpg".format(imgPath))
 
                     elif trTe == "fit":
-                        x, yPred,fp = sess.run([X,YPred,XPath],feed_dict={is_training:False,drop:1.0})
+                        x, yPred,fp = sess.run([X,YPred,XPath],feed_dict={is_training:False,drop:FLAGS.drop})
                         count += x.shape[0]
                         for i in xrange(x.shape[0]):
                             row = fp[i].tolist() + yPred[i].tolist()
                             df.append(row) 
-                        if count % 200 == 0:
+                        if count % 600 == 0:
                             print(count)
                             xeg = x[[0],:]
                             yeg = "NA" 

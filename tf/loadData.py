@@ -6,6 +6,11 @@ import numpy as np
 import cv2, glob
 import pdb
 
+def aug(img,inSize):
+    cropSize = int(0.9*inSize[0])
+    img = tf.random_crop(img,[cropSize,cropSize])
+    return img
+
 def oneHot(idx,nClasses=10):
     oh = tf.sparse_to_dense(idx,output_shape = [nClasses], sparse_values = 1.0)
     return oh
@@ -51,7 +56,7 @@ def getImg(path,size):
     decodedImg = tf.mul(decodedImg,1/255.0)
     return decodedImg
 
-def read(csvPath,batchSize,inSize,num_epochs,shuffle):
+def read(csvPath,batchSize,inSize,num_epochs,shuffle,feats=4):
     csv = tf.train.string_input_producer([csvPath],num_epochs=num_epochs,shuffle=shuffle)
     reader = tf.TextLineReader(skip_header_lines=1)
     k, v = reader.read(csv)
@@ -78,7 +83,12 @@ def read(csvPath,batchSize,inSize,num_epochs,shuffle):
     tf.train.add_queue_runner(QR) 
     dQ = Q.dequeue()
     X,XM,Y,path = tf.train.batch(dQ,batchSize,16,allow_smaller_final_batch=True)
-    XC = tf.concat(3,[X,XM])
+    if feats == 4:
+        # rgb + mask
+        XC = tf.concat(3,[X,XM])
+    else:
+        # normal rgb img
+        XC = X
 
     return XC, Y, path
 
@@ -86,6 +96,8 @@ if __name__ == "__main__":
     inSize = [200,200]
     makeCsv()
     XC, Y, path = read(csvPath="train.csv",batchSize=4,inSize=inSize,num_epochs=10,shuffle=True)
+    image = tf.placeholder(tf.float32)
+    augImg = aug(image,inSize)
 
     init_op = tf.initialize_all_variables()
     with tf.Session() as sess:
@@ -96,9 +108,13 @@ if __name__ == "__main__":
         count = 0
         try:
             while True:
-                p = path.eval()
+                p, xc, y = sess.run([path,XC,Y])
                 print(p)
-                pdb.set_trace()
+                im = xc[0,:,:,:3]
+                for i in xrange(10):
+                    augIm = augImg.eval(feed_dict={image:im})
+                    show(augIm)
+                    pdb.set_trace()
                 if coord.should_stop():
                     break
         except Exception,e:
