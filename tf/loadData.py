@@ -8,7 +8,8 @@ import pdb
 
 def aug(img,inSize):
     cropSize = int(0.9*inSize[0])
-    img = tf.random_crop(img,[cropSize,cropSize])
+    img = tf.random_crop(img,[cropSize,cropSize,inSize[2]])
+    img = tf.image.resize_images(img,inSize[:2])
     return img
 
 def oneHot(idx,nClasses=10):
@@ -56,7 +57,7 @@ def getImg(path,size):
     decodedImg = tf.mul(decodedImg,1/255.0)
     return decodedImg
 
-def read(csvPath,batchSize,inSize,num_epochs,shuffle,feats=4):
+def read(csvPath,batchSize,inSize,num_epochs,shuffle,augment=1,feats=4):
     csv = tf.train.string_input_producer([csvPath],num_epochs=num_epochs,shuffle=shuffle)
     reader = tf.TextLineReader(skip_header_lines=1)
     k, v = reader.read(csv)
@@ -68,12 +69,19 @@ def read(csvPath,batchSize,inSize,num_epochs,shuffle,feats=4):
     xPathRe = tf.reshape(xPath,[1])
     x = getImg(xPath,inSize)
     mask = getImg(maskPath,inSize)
-    maskSize = list(inSize)
-    maskSize += [1]
-    inSize += [3]
 
-    Q = tf.FIFOQueue(128,[tf.float32,tf.float32,tf.float32,tf.string],shapes=[inSize,maskSize,[10],[1]])
-    enQ = Q.enqueue([x,mask,label,xPathRe])
+    if feats == 4:
+        x = tf.concat(2,[x,mask])
+        inSize += [4]
+    else:
+        # normal rgb img
+        inSize += [3] 
+
+    if augment == 1:
+        x = aug(x,inSize)
+
+    Q = tf.FIFOQueue(128,[tf.float32,tf.float32,tf.string],shapes=[inSize,[10],[1]])
+    enQ = Q.enqueue([x,label,xPathRe])
     QR = tf.train.QueueRunner(
             Q,
             [enQ]*32,
@@ -82,22 +90,16 @@ def read(csvPath,batchSize,inSize,num_epochs,shuffle,feats=4):
             )
     tf.train.add_queue_runner(QR) 
     dQ = Q.dequeue()
-    X,XM,Y,path = tf.train.batch(dQ,batchSize,16,allow_smaller_final_batch=True)
-    if feats == 4:
-        # rgb + mask
-        XC = tf.concat(3,[X,XM])
-    else:
-        # normal rgb img
-        XC = X
+    X,Y,path = tf.train.batch(dQ,batchSize,16,allow_smaller_final_batch=True)
 
-    return XC, Y, path
+    return X, Y, path
 
 if __name__ == "__main__":
     inSize = [200,200]
     makeCsv()
-    XC, Y, path = read(csvPath="train.csv",batchSize=4,inSize=inSize,num_epochs=10,shuffle=True)
-    image = tf.placeholder(tf.float32)
-    augImg = aug(image,inSize)
+    XC, Y, path = read(csvPath="train.csv",batchSize=4,inSize=inSize,num_epochs=10,shuffle=True,augment=1,feats=4)
+    #image = tf.placeholder(tf.float32)
+    #augImg = aug(image,inSize)
 
     init_op = tf.initialize_all_variables()
     with tf.Session() as sess:
@@ -111,10 +113,9 @@ if __name__ == "__main__":
                 p, xc, y = sess.run([path,XC,Y])
                 print(p)
                 im = xc[0,:,:,:3]
-                for i in xrange(10):
-                    augIm = augImg.eval(feed_dict={image:im})
-                    show(augIm)
-                    pdb.set_trace()
+                for i in xrange(1):
+                    print(im.shape)
+                    show(im)
                 if coord.should_stop():
                     break
         except Exception,e:

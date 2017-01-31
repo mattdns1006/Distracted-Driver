@@ -61,7 +61,7 @@ def lossFn(y,yPred):
 def trainer(lossFn, learningRate):
     return tf.train.AdamOptimizer(learningRate).minimize(lossFn)
 
-def nodes(batchSize,inSize,trainOrTest,initFeats,incFeats,nDown,num_epochs):
+def nodes(batchSize,inSize,trainOrTest,initFeats,incFeats,nDown,num_epochs,augment):
     if trainOrTest == "train":
         csvPath = "trainCV.csv"
         print("Training on subset.")
@@ -83,7 +83,8 @@ def nodes(batchSize,inSize,trainOrTest,initFeats,incFeats,nDown,num_epochs):
             batchSize=batchSize,
             inSize=inSize,
             shuffle=shuffle,
-            num_epochs = num_epochs
+            num_epochs = num_epochs,
+            augment = augment
             ) #nodes
     is_training = tf.placeholder(tf.bool)
     drop = tf.placeholder(tf.float32)
@@ -108,9 +109,10 @@ if __name__ == "__main__":
     flags.DEFINE_float("lrD",1.00,"Learning rate division rate applied every epoch. (DEFAULT - nothing happens)")
     flags.DEFINE_integer("inSize",256,"Size of input image")
     flags.DEFINE_integer("initFeats",16,"Initial number of features.")
-    flags.DEFINE_integer("incFeats",0,"Number of features growing.")
-    flags.DEFINE_float("drop",0.9,"Keep prob for dropout.")
-    flags.DEFINE_integer("nDown",6,"Number of blocks going down.")
+    flags.DEFINE_integer("incFeats",32,"Number of features growing.")
+    flags.DEFINE_float("drop",0.8,"Keep prob for dropout.")
+    flags.DEFINE_integer("aug",0,"Augment.")
+    flags.DEFINE_integer("nDown",7,"Number of blocks going down.")
     flags.DEFINE_integer("bS",10,"Batch size.")
     flags.DEFINE_integer("load",0,"Load saved model.")
     flags.DEFINE_integer("trainAll",0,"Train on all data.")
@@ -122,7 +124,7 @@ if __name__ == "__main__":
     load = FLAGS.load
     if FLAGS.fit == 1 or FLAGS.test == 1:
         load = 1
-    specification = "{0}_{1:.6f}_{2}_{3}_{4}_{5}_{6:.3f}".format(FLAGS.bS,FLAGS.lr,FLAGS.inSize,FLAGS.initFeats,FLAGS.incFeats,FLAGS.nDown,FLAGS.drop)
+    specification = "{0}_{1:.6f}_{2}_{3}_{4}_{5}_{6:.3f}_{7}".format(FLAGS.bS,FLAGS.lr,FLAGS.inSize,FLAGS.initFeats,FLAGS.incFeats,FLAGS.nDown,FLAGS.drop,FLAGS.aug)
     print("Specification = {0}".format(specification))
     modelDir = "models/" + specification + "/"
     imgPath = modelDir + "imgs/"
@@ -140,7 +142,7 @@ if __name__ == "__main__":
         what = ["test"]
         load = 1
         FLAGS.nEpochs = 1
-    if FLin.writer.AGS.fit == 1:
+    if FLAGS.fit == 1:
         what = ["fit"]
         print("Initializing dataframe to save into.")
         df = []
@@ -160,7 +162,8 @@ if __name__ == "__main__":
             initFeats=FLAGS.initFeats,
             incFeats=FLAGS.incFeats,
             nDown=FLAGS.nDown,
-            num_epochs=FLAGS.nEpochs
+            num_epochs=FLAGS.nEpochs,
+            augment = FLAGS.aug
             )
 
         gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.85)
