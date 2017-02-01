@@ -62,6 +62,7 @@ def getImg(path,size):
     decodedImg = tf.image.resize_images(decodedImg,size)
     decodedImg = tf.cast(decodedImg,tf.float32)
     decodedImg = tf.mul(decodedImg,1/255.0)
+    #decodedImg = tf.sub(decodedImg,tf.reduce_mean(decodedImg))
     return decodedImg
 
 def read(csvPath,batchSize,inSize,num_epochs,shuffle,augment=1,feats=4):
