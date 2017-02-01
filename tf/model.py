@@ -115,14 +115,63 @@ def model0(x,is_training,initFeats=16,featsInc=0,nDown=6,filterSize=3,decay=0.95
     return yPred
 
 def resNet(x,is_training,initFeats=16,featsInc=0,nDown=6,filterSize=3,decay=0.95,dropout=1.0):
-    af = tf.nn.relu
+    af = tf.nn.elu
+    print(x.get_shape())
+    with tf.variable_scope("convIn"):
+        x1 = af(bn(convolution2d(x,4,initFeats,3,stride=1),is_training=is_training,name="bn_0",decay=decay))
+    inFeats = outFeats = initFeats 
+    for block in range(nDown):
+
+        with tf.variable_scope("res_{0}".format(block)):
+            with tf.variable_scope("big_shortcut_{0}".format(block)):
+                bigShortcut = af(bn(convolution2d(x1,outFeats,outFeats,1,stride=1),is_training=is_training,name="bn",decay=decay))
+            for miniBlock in xrange(3):
+                with tf.variable_scope("res_{0}_{1}".format(block,miniBlock)):
+                    shortcut = af(bn(convolution2d(x1,outFeats,outFeats,1,stride=1),is_training=is_training,name="bn_0".format(block),decay=decay))
+                    forward = af(bn(convolution2d(x1,outFeats,outFeats/2,3,stride=1),is_training=is_training,name="bn_1".format(block),decay=decay))
+                    forward = af(bn(convolution2d(forward,outFeats/2,outFeats,3,stride=1),is_training=is_training,name="bn_2".format(block),decay=decay))
+                    out = af(bn(shortcut + forward,is_training=is_training,name="bn_3".format(block)))
+                    x1 = out
+                    print(x1.get_shape())
+            print(x1.get_shape())
+            with tf.variable_scope("transfer_{0}".format(block)):
+                out = af(bn(out + bigShortcut,is_training=is_training,name="bn_0".format(block)))
+                inFeats = outFeats 
+                outFeats += featsInc
+                x1 = af(bn(convolution2d(x1,inFeats,outFeats,3,stride=2),is_training=is_training,name="bn_1".format(block),decay=decay))
+
+    with tf.variable_scope("reshape"):
+
+        sizeBeforeReshape = x1.get_shape().as_list()
+    	print(x1.get_shape())
+        nFeats = sizeBeforeReshape[1]*sizeBeforeReshape[2]*sizeBeforeReshape[3]
+        flatten = tf.reshape(x1, [-1, nFeats])
+        flatten = tf.nn.dropout(flatten,dropout)
+    	print(flatten.get_shape())
+
+    with tf.variable_scope("lin"):
+        nLin1 = 256 
+        wLin1 = W([nFeats,nLin1],"lecun_uniform")
+        bLin1 = B(nLin1)
+        linear = af(bn(tf.matmul(flatten,wLin1) + bLin1,name="bn7",is_training=is_training))
+        linear = tf.nn.dropout(linear,dropout)
+    	print(linear.get_shape())
+
+    with tf.variable_scope("out"):
+        nLin2 = 10 
+        wLin2 = W([nLin1,nLin2],"lecun_uniform")
+        bLin2 = B(nLin2)
+        yPred = tf.matmul(linear,wLin2) + bLin2
+        print(yPred.get_shape())
+    return yPred
+
 
 if __name__ == "__main__":
     import pdb
     import numpy as np
     X = tf.placeholder(tf.float32,shape=[None,256,256,4])
     is_training = tf.placeholder(tf.bool,name="is_training")
-    Y = model0(X,is_training=is_training,initFeats=16)
+    Y = resNet(X,is_training=is_training,initFeats=16,featsInc=32,nDown=6)
     pdb.set_trace()
     with tf.Session() as sess:
         tf.global_variables_initializer().run()

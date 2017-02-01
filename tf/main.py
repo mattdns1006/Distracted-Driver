@@ -4,11 +4,12 @@ import pandas as pd
 import tensorflow as tf
 import matplotlib.pyplot as plt
 import loadData
-from model import model0
+from model import resNet as model0
 import matplotlib.cm as cm
 sys.path.append("/Users/matt/misc/tfFunctions/")
 import paramCount
 from dice import dice
+from paramCount import paramCount
 
 class Decode():
     def __init__(self):
@@ -153,7 +154,7 @@ if __name__ == "__main__":
         aug = 0
         trTe = "fit"
     if FLAGS.trainAll == 1:
-        what = ["train"]
+        what = ["trainAll"]
     decode = Decode()
 
     for trTe in what:
@@ -172,10 +173,12 @@ if __name__ == "__main__":
         gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.85)
 
         merged = tf.summary.merge_all()
+        paramCount()
 
         with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
             if load == 1:
                 print("Restoring {0}.".format(specification))
+
                 saver.restore(sess,savePath)
             else:
                 tf.global_variables_initializer().run()
@@ -207,9 +210,9 @@ if __name__ == "__main__":
                         if count % 10000 == 0:
                             print("Saving")
                             saver.save(sess,savePath)
-                        if count > 100000:
-                            print("Finished training cba")
-                            break
+                        #if count > 100000:
+                        #    print("Finished training cba")
+                        #    break
                     elif trTe == "test":
                         summary,x,y,yPred,xPath = sess.run([merged,X,Y,YPred,XPath],feed_dict={is_training:False,drop:FLAGS.drop})
                         teCount += batchSize
