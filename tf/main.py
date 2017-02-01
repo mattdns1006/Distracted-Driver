@@ -207,7 +207,7 @@ if __name__ == "__main__":
                         if count % 10000 == 0:
                             print("Saving")
                             saver.save(sess,savePath)
-                        if count > 30000:
+                        if count > 100000:
                             print("Finished training cba")
                             break
                     elif trTe == "test":
@@ -256,7 +256,7 @@ if __name__ == "__main__":
                 Df = pd.DataFrame(df)
                 Df.columns = ["img","c0","c1","c2","c3","c4","c5","c6","c7","c8","c9"]
                 Df["img"] = Df.img.apply(lambda x: x.split("/")[-1])
-                Df.to_csv("submission.csv",index=0)
+                Df.to_csv("submissions/submission_{0}.csv".format(specification),index=0)
                 print("Written submission file.")
 
             sess.close()

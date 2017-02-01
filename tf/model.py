@@ -110,6 +110,8 @@ def model0(x,is_training,initFeats=16,featsInc=0,nDown=6,filterSize=3,decay=0.95
         print(yPred.get_shape())
     return yPred
 
+def resNet(x,is_training,initFeats=16,featsInc=0,nDown=6,filterSize=3,decay=0.95,dropout=1.0):
+    af = tf.nn.relu
 
 if __name__ == "__main__":
     import pdb

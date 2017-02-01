@@ -5,7 +5,8 @@ if __name__ == "__main__":
     pd.set_option("display.precision",3)
     pd.set_option("display.float_format",lambda x: '%.3f'%x)
     import pdb
-    submissions = ["submission.csv","submission1.csv","submission2.csv"]
+    import glob
+    submissions = glob.glob("submissions/*.csv")
 
     df = pd.read_csv(submissions[0])
     df.set_index(["img"],inplace=1)
@@ -16,7 +17,7 @@ if __name__ == "__main__":
 
         pass
     df /= len(submissions)
-    print(df.sum(1))
+    print("Averaged submissions {0}".format(submissions))
     df.to_csv("ensemble.csv")
 
 
