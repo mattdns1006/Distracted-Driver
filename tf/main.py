@@ -35,14 +35,14 @@ def showBatch(batchX,y,yPred,wp,figsize=(15,15)):
     plt.imshow(batchX[:,:,:3])
     plt.subplot(122)
     plt.imshow(batchX[:,:,3],cmap=cm.gray)
-    plt.title("yPred = {0}, y = {1}".format(yPred,y))
+    plt.title("yPred = {0}, y = {1}")
     plt.savefig(wp)
     plt.close()
 
 def varSummary(var,name):
     with tf.name_scope('summary'):
         tf.summary.scalar(name, var)
-        tf.summary.histogram(name, var)
+        #tf.summary.histogram(name, var)
 
 def imgSummary(name,img):
     tf.summary.image(name,img)
