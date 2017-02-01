@@ -4,7 +4,7 @@ import pandas as pd
 import tensorflow as tf
 import matplotlib.pyplot as plt
 import loadData
-from model import resNet as model0
+from model import model0 as model0
 import matplotlib.cm as cm
 sys.path.append("/Users/matt/misc/tfFunctions/")
 import paramCount
@@ -43,7 +43,7 @@ def showBatch(batchX,y,yPred,wp,figsize=(15,15)):
 def varSummary(var,name):
     with tf.name_scope('summary'):
         tf.summary.scalar(name, var)
-        #tf.summary.histogram(name, var)
+        tf.summary.histogram(name, var)
 
 def imgSummary(name,img):
     tf.summary.image(name,img)
@@ -210,13 +210,13 @@ if __name__ == "__main__":
                         if count % 10000 == 0:
                             print("Saving")
                             saver.save(sess,savePath)
-                        #if count > 100000:
-                        #    print("Finished training cba")
-                        #    break
+                        if count > 40000:
+                            print("Finished training cba")
+                            break
                     elif trTe == "test":
                         summary,x,y,yPred,xPath = sess.run([merged,X,Y,YPred,XPath],feed_dict={is_training:False,drop:FLAGS.drop})
                         teCount += batchSize
-                        teWriter.add_summary(summary)
+                        teWriter.add_summary(summary,teCount)
                         if teCount % 100 == 0:
                             print("Seen {0} examples".format(teCount))
                             x = x[[0],:]

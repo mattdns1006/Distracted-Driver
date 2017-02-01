@@ -13,8 +13,10 @@ def contrast(img,lower=0.8,upper=1.2):
     return tf.image.random_contrast(img,lower=lower,upper=upper)
 
 def aug(img,inSize):
-    cropSize = int(0.9*inSize[0])
-    img = tf.random_crop(img,[cropSize,cropSize,inSize[2]])
+    x, y = np.random.normal(0.9,0.1,2)
+    cropSizeX = int(x*inSize[0])
+    cropSizeY = int(y*inSize[1])
+    img = tf.random_crop(img,[cropSizeX,cropSizeY,inSize[2]])
     img = tf.image.resize_images(img,inSize[:2])
     img = contrast(img)
     return img

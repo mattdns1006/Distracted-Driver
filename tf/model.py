@@ -138,7 +138,7 @@ def resNet(x,is_training,initFeats=16,featsInc=0,nDown=6,filterSize=3,decay=0.95
                 out = af(bn(out + bigShortcut,is_training=is_training,name="bn_0".format(block)))
                 inFeats = outFeats 
                 outFeats += featsInc
-                x1 = af(bn(convolution2d(x1,inFeats,outFeats,3,stride=2),is_training=is_training,name="bn_1".format(block),decay=decay))
+                x1 = af(bn(convolution2d(out,inFeats,outFeats,3,stride=2),is_training=is_training,name="bn_1".format(block),decay=decay))
 
     with tf.variable_scope("reshape"):
 
