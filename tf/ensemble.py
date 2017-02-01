@@ -7,6 +7,7 @@ if __name__ == "__main__":
     import pdb
     import glob
     submissions = glob.glob("submissions/*.csv")
+    pdb.set_trace
 
     df = pd.read_csv(submissions[0])
     df.set_index(["img"],inplace=1)

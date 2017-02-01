@@ -35,7 +35,7 @@ def showBatch(batchX,y,yPred,wp,figsize=(15,15)):
     plt.imshow(batchX[:,:,:3])
     plt.subplot(122)
     plt.imshow(batchX[:,:,3],cmap=cm.gray)
-    plt.title("yPred = {0}, y = {1}")
+    plt.title("yPred = {0}, y = {1}".format(y,yPred))
     plt.savefig(wp)
     plt.close()
 
@@ -195,7 +195,7 @@ if __name__ == "__main__":
                         trCount += batchSize
                         count += batchSize
                         trWriter.add_summary(summary,trCount)
-                        if count % 100 == 0:
+                        if count % 200 == 0:
                             print("Seen {0} examples".format(count))
                             x = x[[0],:]
                             y = y[[0],:].argmax()

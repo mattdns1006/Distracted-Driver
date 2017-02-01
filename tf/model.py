@@ -90,10 +90,13 @@ def model0(x,is_training,initFeats=16,featsInc=0,nDown=6,filterSize=3,decay=0.95
             dilation += 2
 
     with tf.variable_scope("reshape"):
+
         sizeBeforeReshape = x1.get_shape().as_list()
+    	print(x1.get_shape())
         nFeats = sizeBeforeReshape[1]*sizeBeforeReshape[2]*sizeBeforeReshape[3]
         flatten = tf.reshape(x1, [-1, nFeats])
         flatten = tf.nn.dropout(flatten,dropout)
+    	print(flatten.get_shape())
 
     with tf.variable_scope("lin"):
         nLin1 = 256 
@@ -101,6 +104,7 @@ def model0(x,is_training,initFeats=16,featsInc=0,nDown=6,filterSize=3,decay=0.95
         bLin1 = B(nLin1)
         linear = af(bn(tf.matmul(flatten,wLin1) + bLin1,name="bn7",is_training=is_training))
         linear = tf.nn.dropout(linear,dropout)
+    	print(linear.get_shape())
 
     with tf.variable_scope("out"):
         nLin2 = 10 
