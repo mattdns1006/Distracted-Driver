@@ -48,13 +48,12 @@ def varSummary(var,name):
 def imgSummary(name,img):
     tf.summary.image(name,img)
 
-def lossFn(y,yPred,regularization=1):
+def lossFn(y,yPred,regularization=1,beta=0.00014):
     with tf.variable_scope("loss"):
         y = tf.argmax(y,1)
         loss = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(labels=y,logits=yPred))
         regLoss = loss
         if regularization == 1:
-            beta = 0.0010
             weights = [w for w in tf.trainable_variables() if "/w/" in w.name]
             for w in weights:
                 regLoss += beta*tf.nn.l2_loss(w)
@@ -119,7 +118,7 @@ if __name__ == "__main__":
     flags.DEFINE_integer("inSize",128,"Size of input image")
     flags.DEFINE_integer("initFeats",64,"Initial number of features.")
     flags.DEFINE_integer("incFeats",16,"Number of features growing.")
-    flags.DEFINE_float("drop",0.95,"Keep prob for dropout.")
+    flags.DEFINE_float("drop",0.941,"Keep prob for dropout.")
     flags.DEFINE_integer("aug",1,"Augment.")
     flags.DEFINE_integer("nDown",7,"Number of blocks going down.")
     flags.DEFINE_integer("bS",10,"Batch size.")
