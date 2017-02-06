@@ -48,23 +48,31 @@ def varSummary(var,name):
 def imgSummary(name,img):
     tf.summary.image(name,img)
 
-def lossFn(y,yPred):
+def lossFn(y,yPred,regularization=1):
     with tf.variable_scope("loss"):
         y = tf.argmax(y,1)
         loss = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(labels=y,logits=yPred))
+        regLoss = loss
+        if regularization == 1:
+            beta = 0.0010
+            weights = [w for w in tf.trainable_variables() if "/w/" in w.name]
+            for w in weights:
+                regLoss += beta*tf.nn.l2_loss(w)
         varSummary(loss,"loss")
+    with tf.variable_scope("regLoss"):
+        varSummary(regLoss,"regLoss")
     with tf.variable_scope("accuracy"):
         correct = tf.equal(tf.argmax(yPred,1),y)
         acc = tf.reduce_mean(tf.cast(correct,tf.float32))
         varSummary(acc,"accuracy")
-    return loss
+    return loss, regLoss 
 
 def trainer(lossFn, learningRate):
     return tf.train.AdamOptimizer(learningRate).minimize(lossFn)
 
 def nodes(batchSize,inSize,trainOrTest,initFeats,incFeats,nDown,num_epochs,augment):
     if trainOrTest == "train":
-        csvPath = "trainCV.csv"
+        csvPath = "trainAugCV.csv"
         print("Training on subset.")
         shuffle = True
     elif trainOrTest == "trainAll":
@@ -90,9 +98,9 @@ def nodes(batchSize,inSize,trainOrTest,initFeats,incFeats,nDown,num_epochs,augme
     is_training = tf.placeholder(tf.bool)
     drop = tf.placeholder(tf.float32)
     YPred = model0(X,is_training=is_training,nDown=nDown,initFeats=initFeats,featsInc=incFeats,dropout=drop)
-    loss = lossFn(Y,YPred)
+    loss, regLoss = lossFn(Y,YPred)
     learningRate = tf.placeholder(tf.float32)
-    trainOp = trainer(loss,learningRate)
+    trainOp = trainer(regLoss,learningRate)
     saver = tf.train.Saver()
 
     if trainOrTest == "fit":
@@ -108,10 +116,10 @@ if __name__ == "__main__":
     flags.DEFINE_float("lr",0.001,"Initial learning rate.")
     flags.DEFINE_float("feats",4,"Use the 4th feature i.e. mask?.")
     flags.DEFINE_float("lrD",1.00,"Learning rate division rate applied every epoch. (DEFAULT - nothing happens)")
-    flags.DEFINE_integer("inSize",256,"Size of input image")
-    flags.DEFINE_integer("initFeats",16,"Initial number of features.")
-    flags.DEFINE_integer("incFeats",32,"Number of features growing.")
-    flags.DEFINE_float("drop",0.8,"Keep prob for dropout.")
+    flags.DEFINE_integer("inSize",128,"Size of input image")
+    flags.DEFINE_integer("initFeats",64,"Initial number of features.")
+    flags.DEFINE_integer("incFeats",16,"Number of features growing.")
+    flags.DEFINE_float("drop",0.95,"Keep prob for dropout.")
     flags.DEFINE_integer("aug",1,"Augment.")
     flags.DEFINE_integer("nDown",7,"Number of blocks going down.")
     flags.DEFINE_integer("bS",10,"Batch size.")
@@ -210,7 +218,7 @@ if __name__ == "__main__":
                         if count % 10000 == 0:
                             print("Saving")
                             saver.save(sess,savePath)
-                        if count > 40000:
+                        if count > 60000:
                             print("Finished training cba")
                             break
                     elif trTe == "test":
@@ -264,4 +272,3 @@ if __name__ == "__main__":
 
             sess.close()
 
-                    

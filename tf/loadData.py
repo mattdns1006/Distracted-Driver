@@ -3,8 +3,10 @@ import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 import pandas as pd
 import numpy as np
-import cv2, glob
-import pdb
+import cv2, glob, os
+from model import imSum
+import pdb, time
+from tqdm import tqdm
 
 def brightness(img,max_delta=30):
     return tf.image.random_brightness(img,max_delta=max_delta)
@@ -13,12 +15,12 @@ def contrast(img,lower=0.8,upper=1.2):
     return tf.image.random_contrast(img,lower=lower,upper=upper)
 
 def aug(img,inSize):
-    x, y = np.random.normal(0.9,0.1,2)
-    cropSizeX = int(x*inSize[0])
-    cropSizeY = int(y*inSize[1])
+    e = np.random.normal(0.95,0.01,1)[0]
+    cropSizeX = int(e*inSize[0])
+    cropSizeY = int(e*inSize[1])
     img = tf.random_crop(img,[cropSizeX,cropSizeY,inSize[2]])
     img = tf.image.resize_images(img,inSize[:2])
-    img = contrast(img)
+    #img = contrast(img)
     return img
 
 def oneHot(idx,nClasses=10):
@@ -43,9 +45,50 @@ def makeCsv():
         csv = pd.DataFrame({"path":path,"pathMask":mask,"label":0})
         csv.to_csv("{0}.csv".format(i),index=0)
 
+def augment():
+    train = pd.read_csv("trainCV.csv")
+    savePath = "augmented/"
+    if not os.path.exists(savePath):
+        os.mkdir(savePath)
+    count = 0
+    newWidth = newHeight = 128 
+    nObs = train.shape[0]
+    df = []
+    for i in tqdm(xrange(nObs)):
+        row = train.ix[i]
+        im, mask = [cv2.imread(x) for x in [row.path, row.pathMask]]
+        im, mask = [cv2.resize(x,(newWidth,newHeight),interpolation=cv2.INTER_CUBIC) for x in [im,mask]]
+        for j in xrange(20):
+            if j == 0:
+                continue
+            angle = np.random.uniform(-6,6)
+            scale = np.random.normal(1.0,0.08)
+            shiftX, shiftY = np.random.normal(0,10,2)
+            M = cv2.getRotationMatrix2D((newWidth/2,newHeight/2),angle,scale=scale)
+            M[0,1] += np.random.normal(0,0.02)
+            imC = im.copy()
+            maskC = mask.copy()
+            imC, maskC = [cv2.warpAffine(x,M,(newWidth,newHeight),borderMode = 0,flags=cv2.INTER_CUBIC) for x in [imC,maskC]]
+            wp = savePath + str(count) + ".jpg"
+            wp = os.path.abspath(wp)
+            wpMask = wp.replace(".jpg","_mask.jpg")
+            cv2.imwrite(wp,imC)
+            cv2.imwrite(wpMask,maskC)
+            df.append([row.label,wp,wpMask])
+            count += 1
+    df = pd.DataFrame(df)
+    df.columns = ["label","path","pathMask"]
+    nObs = df.shape[0]
+    rIdx = np.random.permutation(nObs)
+    df= df.reindex(rIdx)
+    df.reset_index(drop=1,inplace=1)
+    df.to_csv("trainAugCV.csv",index=0)
+
+
 def show(img):
     plt.imshow(img,cmap=cm.gray)
     plt.show()
+    plt.close()
 
 def showBatch(batchX,batchXM, figsize=(15,15)):
     n, h, w, c = batchX.shape
@@ -64,6 +107,7 @@ def getImg(path,size):
     decodedImg = tf.image.resize_images(decodedImg,size)
     decodedImg = tf.cast(decodedImg,tf.float32)
     decodedImg = tf.mul(decodedImg,1/255.0)
+    decodedImg = tf.image.per_image_standardization(decodedImg)
     #decodedImg = tf.sub(decodedImg,tf.reduce_mean(decodedImg))
     return decodedImg
 
@@ -94,7 +138,7 @@ def read(csvPath,batchSize,inSize,num_epochs,shuffle,augment=1,feats=4):
     enQ = Q.enqueue([x,label,xPathRe])
     QR = tf.train.QueueRunner(
             Q,
-            [enQ]*32,
+            [enQ]*24,
             Q.close(),
             Q.close(cancel_pending_enqueues=True)
             )
@@ -106,30 +150,33 @@ def read(csvPath,batchSize,inSize,num_epochs,shuffle,augment=1,feats=4):
 
 if __name__ == "__main__":
     inSize = [200,200]
-    makeCsv()
-    XC, Y, path = read(csvPath="train.csv",batchSize=4,inSize=inSize,num_epochs=10,shuffle=True,augment=1,feats=4)
-    #image = tf.placeholder(tf.float32)
-    #augImg = aug(image,inSize)
+    #makeCsv()
+    augment()
+    train = pd.read_csv("train.csv")[:1]
+    train.to_csv("trainEg.csv",index=0)
+    XC, Y, path = read(csvPath="trainEg.csv",batchSize=1,inSize=inSize,num_epochs=100,shuffle=True,augment=1,feats=4)
+    image = tf.placeholder(tf.float32)
 
-    init_op = tf.initialize_all_variables()
-    with tf.Session() as sess:
-        sess.run(init_op)
-        tf.initialize_local_variables().run()
-        coord = tf.train.Coordinator()
-        threads = tf.train.start_queue_runners(sess=sess,coord=coord)
-        count = 0
-        try:
-            while True:
-                p, xc, y = sess.run([path,XC,Y])
-                print(p)
-                im = xc[0,:,:,:3]
-                for i in xrange(1):
-                    print(im.shape)
-                    show(im)
-                if coord.should_stop():
-                    break
-        except Exception,e:
-            coord.request_stop(e)
-        finally:
-            coord.request_stop()
-            coord.join(threads)
+    def eg():
+        init_op = tf.initialize_all_variables()
+        with tf.Session() as sess:
+            sess.run(init_op)
+            tf.initialize_local_variables().run()
+            coord = tf.train.Coordinator()
+            threads = tf.train.start_queue_runners(sess=sess,coord=coord)
+            count = 0
+            try:
+                while True:
+                    p, xc, y = sess.run([path,XC,Y])
+                    print(p)
+                    im = xc[0,:,:,:3]
+                    for i in xrange(1):
+                        print(im.shape)
+                        show(im)
+                    if coord.should_stop():
+                        break
+            except Exception,e:
+                coord.request_stop(e)
+            finally:
+                coord.request_stop()
+                coord.join(threads)
