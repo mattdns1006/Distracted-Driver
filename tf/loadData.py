@@ -53,7 +53,7 @@ def augment():
     if not os.path.exists(savePath):
         os.mkdir(savePath)
     count = 0
-    newWidth = newHeight = 128 
+    newWidth = newHeight = 224
     maxShift = int(0.05*newWidth)
     nObs = train.shape[0]
     df = []
