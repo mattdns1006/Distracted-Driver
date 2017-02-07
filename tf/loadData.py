@@ -3,7 +3,9 @@ import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 import pandas as pd
 import numpy as np
-import cv2, glob, os
+import cv2, glob, os, sys
+sys.path.append("/home/msmith/misc/py")
+from removeFiles import removeFiles
 from model import imSum
 import pdb, time
 from tqdm import tqdm
@@ -52,23 +54,24 @@ def augment():
         os.mkdir(savePath)
     count = 0
     newWidth = newHeight = 128 
+    maxShift = int(0.05*newWidth)
     nObs = train.shape[0]
     df = []
-    for i in tqdm(xrange(nObs)):
+    for i in tqdm(range(nObs)):
         row = train.ix[i]
         im, mask = [cv2.imread(x) for x in [row.path, row.pathMask]]
         im, mask = [cv2.resize(x,(newWidth,newHeight),interpolation=cv2.INTER_CUBIC) for x in [im,mask]]
         for j in xrange(20):
-            if j == 0:
-                continue
-            angle = np.random.uniform(-6,6)
-            scale = np.random.normal(1.0,0.08)
-            shiftX, shiftY = np.random.normal(0,10,2)
-            M = cv2.getRotationMatrix2D((newWidth/2,newHeight/2),angle,scale=scale)
-            M[0,1] += np.random.normal(0,0.02)
             imC = im.copy()
             maskC = mask.copy()
-            imC, maskC = [cv2.warpAffine(x,M,(newWidth,newHeight),borderMode = 0,flags=cv2.INTER_CUBIC) for x in [imC,maskC]]
+            if j != 0:
+                #aug
+                angle = np.random.uniform(-6,6)
+                scale = np.random.normal(1.0,0.1)
+                M = cv2.getRotationMatrix2D((newWidth/2,newHeight/2),angle,scale=scale)
+                M[0,1] += np.random.normal(0,0.1)
+                M[:,2] = np.random.normal(0,maxShift,2)
+                imC, maskC = [cv2.warpAffine(x,M,(newWidth,newHeight),borderMode = 0,flags=cv2.INTER_CUBIC) for x in [imC,maskC]]
             wp = savePath + str(count) + ".jpg"
             wp = os.path.abspath(wp)
             wpMask = wp.replace(".jpg","_mask.jpg")
@@ -76,6 +79,7 @@ def augment():
             cv2.imwrite(wpMask,maskC)
             df.append([row.label,wp,wpMask])
             count += 1
+            #time.sleep(1)
     df = pd.DataFrame(df)
     df.columns = ["label","path","pathMask"]
     nObs = df.shape[0]

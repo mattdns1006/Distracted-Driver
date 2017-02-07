@@ -48,7 +48,7 @@ def varSummary(var,name):
 def imgSummary(name,img):
     tf.summary.image(name,img)
 
-def lossFn(y,yPred,regularization=1,beta=0.00014):
+def lossFn(y,yPred,regularization=1,beta=0.00034):
     with tf.variable_scope("loss"):
         y = tf.argmax(y,1)
         loss = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(labels=y,logits=yPred))
@@ -217,7 +217,7 @@ if __name__ == "__main__":
                         if count % 10000 == 0:
                             print("Saving")
                             saver.save(sess,savePath)
-                        if count > 60000:
+                        if count > 120000:
                             print("Finished training cba")
                             break
                     elif trTe == "test":
